@@ -1,0 +1,18 @@
+# Interface web
+streamlit==1.45.0
+
+# Requêtes HTTP pour les APIs
+requests==2.32.3
+
+# Cartes interactives
+folium==0.19.5
+streamlit-folium==0.24.0
+
+# Graphiques interactifs
+plotly==6.0.1
+
+# Manipulation de données
+pandas==2.2.3
+
+# Dates et heures
+python-dateutil==2.9.0
