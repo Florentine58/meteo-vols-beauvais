@@ -80,7 +80,7 @@ Suivi des tâches sur GitHub Issues ou tableau personnel :
 
 ## Auteur
 
-- **Nom** : [Ton nom]
+- **Nom** : Meunier Florentine
 - **Formation** : Mineure Numérique B2
 - **Date** : 2025
 
