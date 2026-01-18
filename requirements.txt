@@ -16,3 +16,6 @@ pandas==2.2.3
 
 # Dates et heures
 python-dateutil==2.9.0
+
+# API FlightRadar24 (usage éducatif)
+FlightRadarAPI==1.4.0

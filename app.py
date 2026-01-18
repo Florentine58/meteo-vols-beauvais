@@ -8,12 +8,12 @@ import streamlit as st
 # Configuration de la page (doit être la première commande Streamlit)
 st.set_page_config(
     page_title="Météo & Vols Beauvais",
-    page_icon="✈️",
+    page_icon="",
     layout="wide"
 )
 
 # Titre principal
-st.title("✈️ Météo & Vols Beauvais")
+st.title("Météo & Vols Beauvais")
 st.markdown("*Surveillance météo et trafic aérien de l'aéroport Paris-Beauvais*")
 
 # Ligne de séparation
@@ -28,13 +28,13 @@ with col1:
     # TODO: Appeler api/weather.py et afficher les données
 
 with col2:
-    st.header("🛫 Trafic aérien")
+    st.header("Trafic aérien")
     st.info("Les données de vols apparaîtront ici.")
     # TODO: Appeler api/flights.py et afficher les données
 
 # Section carte (pleine largeur)
 st.divider()
-st.header("🗺️ Carte interactive")
+st.header("Carte interactive")
 st.info("La carte de Beauvais avec météo et trajectoires apparaîtra ici.")
 # TODO: Intégrer une carte Folium
 

@@ -2,7 +2,7 @@
 Module pour récupérer les données de vols à Paris-Beauvais (BVA) via FlightRadar24.
 
 Utilise la librairie non-officielle FlightRadarAPI (usage éducatif uniquement).
-Documentation : https://github.com/JeanExtreme002/FlightRadarAPI
+Source : https://github.com/JeanExtreme002/FlightRadarAPI
 """
 
 from FlightRadar24 import FlightRadar24API
@@ -11,7 +11,7 @@ from datetime import datetime
 # Initialiser l'API
 fr_api = FlightRadar24API()
 
-# Coordonnées de l'aéroport Paris-Beauvais (BVA)
+# Coordonnées de l'aéroport Beauvais (BVA)
 BVA_LAT = 49.4544
 BVA_LON = 2.1106
 

@@ -27,9 +27,9 @@ if st.button("🔄 Rafraîchir les données"):
 
 st.divider()
 
-# =============================================================================
+
 # SECTION 1 : Vols en temps réel dans la zone
-# =============================================================================
+
 st.header("📡 Vols en temps réel")
 st.caption(f"Avions dans un rayon de 50 km autour de l'aéroport")
 
@@ -87,9 +87,9 @@ else:
 
 st.divider()
 
-# =============================================================================
+
 # SECTION 2 : Informations aéroport
-# =============================================================================
+
 st.header("ℹ️ Informations sur l'aéroport")
 
 col1, col2 = st.columns(2)

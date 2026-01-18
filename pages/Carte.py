@@ -20,19 +20,69 @@ st.set_page_config(
 st.title("🗺️ Carte Interactive")
 st.markdown("*Visualisation en temps réel de la météo et du trafic aérien*")
 
-# Bouton de rafraîchissement
-if st.button("🔄 Rafraîchir les données"):
-    st.rerun()
+# =============================================================================
+# Contrôles : Figer / Actualiser
+# =============================================================================
+col_btn1, col_btn2, col_spacer = st.columns([1, 1, 4])
+
+with col_btn1:
+    if st.button("🔄 Actualiser"):
+        # Effacer le cache pour forcer le rechargement
+        if 'carte_figee' in st.session_state:
+            del st.session_state['carte_figee']
+        st.rerun()
+
+with col_btn2:
+    # Toggle pour figer/défiger
+    if 'carte_figee' not in st.session_state:
+        st.session_state['carte_figee'] = False
+    
+    if st.session_state['carte_figee']:
+        if st.button("▶️ Reprendre le live"):
+            st.session_state['carte_figee'] = False
+            st.rerun()
+    else:
+        if st.button("⏸️ Figer la carte"):
+            st.session_state['carte_figee'] = True
+            st.rerun()
+
+# Afficher le statut
+if st.session_state.get('carte_figee', False):
+    st.info("🔒 **Carte figée** — Les données ne se mettent plus à jour automatiquement")
+else:
+    st.success("🔴 **Mode live** — Données en temps réel")
 
 st.divider()
 
 # =============================================================================
-# Récupération des données
+# Récupération des données (avec cache si figée)
 # =============================================================================
-with st.spinner("Chargement des données..."):
+@st.cache_data(ttl=300)  # Cache de 5 minutes
+def get_cached_data():
     weather = get_current_weather()
     flights = get_flights_in_area()
-    airport = get_airport_info()
+    return weather, flights
+
+# Si la carte est figée, utiliser les données en cache
+if st.session_state.get('carte_figee', False):
+    # Utiliser le cache
+    if 'cached_weather' not in st.session_state:
+        weather, flights = get_cached_data()
+        st.session_state['cached_weather'] = weather
+        st.session_state['cached_flights'] = flights
+    else:
+        weather = st.session_state['cached_weather']
+        flights = st.session_state['cached_flights']
+else:
+    # Mode live : récupérer les données fraîches
+    with st.spinner("Chargement des données..."):
+        weather = get_current_weather()
+        flights = get_flights_in_area()
+        # Sauvegarder pour quand on fige
+        st.session_state['cached_weather'] = weather
+        st.session_state['cached_flights'] = flights
+
+airport = get_airport_info()
 
 # =============================================================================
 # Création de la carte
@@ -164,8 +214,8 @@ with col4:
 
 st.divider()
 
-# Afficher la carte
-st_folium(m, width=None, height=600, use_container_width=True)
+# Afficher la carte (sans returned_objects pour éviter les rechargements)
+st_folium(m, width=None, height=600, use_container_width=True, returned_objects=[])
 
 # =============================================================================
 # Légende

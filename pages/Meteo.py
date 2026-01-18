@@ -26,9 +26,9 @@ if st.button("🔄 Rafraîchir les données"):
 
 st.divider()
 
-# =============================================================================
+
 # SECTION 1 : Météo actuelle
-# =============================================================================
+
 st.header("📍 Conditions actuelles")
 
 weather = get_current_weather()
@@ -104,9 +104,9 @@ else:
 
 st.divider()
 
-# =============================================================================
+
 # SECTION 2 : Prévisions horaires
-# =============================================================================
+
 st.header("📈 Prévisions sur 24 heures")
 
 forecast = get_hourly_forecast(days=1)
@@ -176,9 +176,9 @@ else:
 
 st.divider()
 
-# =============================================================================
+
 # SECTION 3 : Impact sur l'aviation
-# =============================================================================
+
 st.header("✈️ Impact sur l'aviation")
 
 if weather:
@@ -188,21 +188,21 @@ if weather:
     # Vent
     wind_speed = weather['wind_speed_10m']
     if wind_speed < 20:
-        conditions.append(("✅ Vent faible", "Conditions favorables pour les opérations aériennes"))
+        conditions.append((" Vent faible", "Conditions favorables pour les opérations aériennes"))
     elif wind_speed < 40:
-        conditions.append(("⚠️ Vent modéré", "Légères turbulences possibles à l'atterrissage"))
+        conditions.append((" Vent modéré", "Légères turbulences possibles à l'atterrissage"))
     else:
-        conditions.append(("❌ Vent fort", "Risque de retards ou déroutements"))
+        conditions.append((" Vent fort", "Risque de retards ou déroutements"))
     
     # Visibilité (si disponible dans les prévisions)
     if forecast and 'visibility' in forecast:
         visibility = forecast['visibility'][0] / 1000  # Convertir en km
         if visibility > 10:
-            conditions.append(("✅ Bonne visibilité", f"{visibility:.0f} km — Conditions VFR"))
+            conditions.append((" Bonne visibilité", f"{visibility:.0f} km — Conditions VFR"))
         elif visibility > 5:
-            conditions.append(("⚠️ Visibilité moyenne", f"{visibility:.0f} km — Approches ILS possibles"))
+            conditions.append(("Visibilité moyenne", f"{visibility:.0f} km — Approches ILS possibles"))
         else:
-            conditions.append(("❌ Mauvaise visibilité", f"{visibility:.0f} km — Risque de retards"))
+            conditions.append((" Mauvaise visibilité", f"{visibility:.0f} km — Risque de retards"))
     
     # Afficher les conditions
     for status, description in conditions:
