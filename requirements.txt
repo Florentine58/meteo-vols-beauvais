@@ -19,3 +19,6 @@ python-dateutil==2.9.0
 
 # API FlightRadar24 (usage éducatif)
 FlightRadarAPI==1.4.0
+
+# Variables d'environnement (pour les credentials OpenSky)
+python-dotenv==1.0.1

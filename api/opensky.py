@@ -1,28 +1,47 @@
 """
-Module pour récupérer les données historiques de vols via OpenSky Network.
+Module pour récupérer les données de vols via OpenSky Network.
 
-API gratuite avec historique jusqu'à 30 jours.
+API gratuite avec authentification OAuth2.
 Documentation : https://openskynetwork.github.io/opensky-api/
 """
 
 import requests
 from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement
+load_dotenv()
+
+# Credentials OpenSky (depuis .env)
+OPENSKY_CLIENT_ID = os.getenv("OPENSKY_CLIENT_ID")
+OPENSKY_CLIENT_SECRET = os.getenv("OPENSKY_CLIENT_SECRET")
 
 # Coordonnées de l'aéroport Paris-Beauvais (BVA)
 BVA_LAT = 49.4544
 BVA_LON = 2.1106
+AIRPORT_ICAO = "LFOB"
 
-# Zone de recherche (bounding box autour de Beauvais)
-# Environ 50 km de rayon
+# Zone de recherche (bounding box autour de Beauvais ~50km)
 BBOX = {
-    "lamin": BVA_LAT - 0.5,  # latitude min
-    "lamax": BVA_LAT + 0.5,  # latitude max
-    "lomin": BVA_LON - 0.7,  # longitude min
-    "lomax": BVA_LON + 0.7   # longitude max
+    "lamin": BVA_LAT - 0.5,
+    "lamax": BVA_LAT + 0.5,
+    "lomin": BVA_LON - 0.7,
+    "lomax": BVA_LON + 0.7
 }
 
 # URL de l'API OpenSky
 BASE_URL = "https://opensky-network.org/api"
+
+
+def get_auth():
+    """
+    Retourne les credentials pour l'authentification HTTP Basic.
+    OpenSky utilise le client_id comme username et client_secret comme password.
+    """
+    if OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET:
+        return (OPENSKY_CLIENT_ID.replace("-api-client", ""), OPENSKY_CLIENT_SECRET)
+    return None
 
 
 def get_flights_by_airport(airport_icao="LFOB", begin=None, end=None, arrival=True):
@@ -36,11 +55,16 @@ def get_flights_by_airport(airport_icao="LFOB", begin=None, end=None, arrival=Tr
         arrival (bool): True pour les arrivées, False pour les départs
     
     Returns:
-        list: Liste des vols
+        list: Liste des vols avec leurs informations
     """
     if end is None:
         end = datetime.now()
     if begin is None:
+        begin = end - timedelta(days=7)
+    
+    # OpenSky limite à 7 jours max par requête
+    if (end - begin).days > 7:
+        print("Attention: OpenSky limite à 7 jours par requête. Réduction automatique.")
         begin = end - timedelta(days=7)
     
     # Convertir en timestamp Unix
@@ -48,28 +72,22 @@ def get_flights_by_airport(airport_icao="LFOB", begin=None, end=None, arrival=Tr
     end_ts = int(end.timestamp())
     
     # Endpoint selon arrivées ou départs
-    if arrival:
-        endpoint = f"{BASE_URL}/flights/arrival"
-        params = {
-            "airport": airport_icao,
-            "begin": begin_ts,
-            "end": end_ts
-        }
-    else:
-        endpoint = f"{BASE_URL}/flights/departure"
-        params = {
-            "airport": airport_icao,
-            "begin": begin_ts,
-            "end": end_ts
-        }
+    endpoint_type = "arrival" if arrival else "departure"
+    url = f"{BASE_URL}/flights/{endpoint_type}"
+    
+    params = {
+        "airport": airport_icao,
+        "begin": begin_ts,
+        "end": end_ts
+    }
     
     try:
-        response = requests.get(endpoint, params=params, timeout=30)
+        auth = get_auth()
+        response = requests.get(url, params=params, auth=auth, timeout=30)
         
         if response.status_code == 200:
             flights = response.json()
             
-            # Formater les données
             formatted_flights = []
             for flight in flights:
                 formatted_flights.append({
@@ -88,109 +106,124 @@ def get_flights_by_airport(airport_icao="LFOB", begin=None, end=None, arrival=Tr
         elif response.status_code == 404:
             print(f"Aucun vol trouvé pour {airport_icao}")
             return []
+        elif response.status_code == 401:
+            print("Erreur d'authentification OpenSky. Vérifiez vos credentials.")
+            return []
+        elif response.status_code == 403:
+            print("Accès refusé. Vérifiez que votre compte OpenSky est activé.")
+            return []
         else:
-            print(f"Erreur API OpenSky: {response.status_code}")
+            print(f"Erreur API OpenSky: {response.status_code} - {response.text}")
             return []
             
     except requests.RequestException as e:
-        print(f"Erreur lors de la récupération des vols historiques : {e}")
+        print(f"Erreur réseau OpenSky: {e}")
         return []
 
 
-def get_historical_flights_in_area(begin=None, end=None):
+def get_historical_flights(days=7):
     """
-    Récupère tous les vols historiques (arrivées + départs) pour Beauvais.
+    Récupère l'historique des vols (arrivées + départs) pour Beauvais.
     
     Args:
-        begin (datetime): Date de début
-        end (datetime): Date de fin
+        days (int): Nombre de jours d'historique (max 7 par requête)
     
     Returns:
-        dict: Dictionnaire avec 'arrivals' et 'departures'
+        dict: Dictionnaire avec 'arrivals', 'departures', 'total', 'by_day'
     """
-    arrivals = get_flights_by_airport("LFOB", begin, end, arrival=True)
-    departures = get_flights_by_airport("LFOB", begin, end, arrival=False)
+    end = datetime.now()
+    begin = end - timedelta(days=min(days, 7))
+    
+    print(f"Récupération des vols du {begin.strftime('%d/%m/%Y')} au {end.strftime('%d/%m/%Y')}...")
+    
+    arrivals = get_flights_by_airport(AIRPORT_ICAO, begin, end, arrival=True)
+    departures = get_flights_by_airport(AIRPORT_ICAO, begin, end, arrival=False)
+    
+    # Regrouper par jour
+    by_day = {}
+    
+    for flight in arrivals:
+        day = flight['arrival_time'].strftime("%Y-%m-%d")
+        if day not in by_day:
+            by_day[day] = {"arrivals": 0, "departures": 0}
+        by_day[day]["arrivals"] += 1
+    
+    for flight in departures:
+        day = flight['departure_time'].strftime("%Y-%m-%d")
+        if day not in by_day:
+            by_day[day] = {"arrivals": 0, "departures": 0}
+        by_day[day]["departures"] += 1
     
     return {
         "arrivals": arrivals,
         "departures": departures,
-        "total": len(arrivals) + len(departures)
+        "total": len(arrivals) + len(departures),
+        "by_day": by_day,
+        "period": {
+            "begin": begin.strftime("%Y-%m-%d"),
+            "end": end.strftime("%Y-%m-%d")
+        }
     }
 
 
-def get_daily_flight_counts(days=7):
+def get_extended_historical_flights(weeks=4):
     """
-    Récupère le nombre de vols par jour sur les X derniers jours.
+    Récupère l'historique sur plusieurs semaines en faisant plusieurs requêtes.
     
     Args:
-        days (int): Nombre de jours à analyser
+        weeks (int): Nombre de semaines d'historique
     
     Returns:
-        list: Liste de dictionnaires avec date et nombre de vols
+        dict: Données agrégées sur toute la période
     """
-    daily_counts = []
+    all_arrivals = []
+    all_departures = []
+    all_by_day = {}
     
-    for i in range(days, 0, -1):
-        day_end = datetime.now() - timedelta(days=i-1)
-        day_start = datetime.now() - timedelta(days=i)
-        
-        # Définir les bornes de la journée
-        day_start = day_start.replace(hour=0, minute=0, second=0)
-        day_end = day_end.replace(hour=23, minute=59, second=59)
-        
-        flights = get_historical_flights_in_area(day_start, day_end)
-        
-        daily_counts.append({
-            "date": day_start.strftime("%Y-%m-%d"),
-            "date_formatted": day_start.strftime("%d/%m"),
-            "arrivals": len(flights["arrivals"]),
-            "departures": len(flights["departures"]),
-            "total": flights["total"]
-        })
-    
-    return daily_counts
-
-
-def get_hourly_distribution(days=7):
-    """
-    Analyse la distribution horaire des vols sur les X derniers jours.
-    
-    Args:
-        days (int): Nombre de jours à analyser
-    
-    Returns:
-        dict: Distribution par heure (0-23)
-    """
     end = datetime.now()
-    begin = end - timedelta(days=days)
     
-    flights_data = get_historical_flights_in_area(begin, end)
+    for week in range(weeks):
+        week_end = end - timedelta(weeks=week)
+        week_begin = week_end - timedelta(days=7)
+        
+        print(f"Semaine {week + 1}/{weeks}: {week_begin.strftime('%d/%m')} - {week_end.strftime('%d/%m')}")
+        
+        arrivals = get_flights_by_airport(AIRPORT_ICAO, week_begin, week_end, arrival=True)
+        departures = get_flights_by_airport(AIRPORT_ICAO, week_begin, week_end, arrival=False)
+        
+        all_arrivals.extend(arrivals)
+        all_departures.extend(departures)
+        
+        # Agréger par jour
+        for flight in arrivals:
+            day = flight['arrival_time'].strftime("%Y-%m-%d")
+            if day not in all_by_day:
+                all_by_day[day] = {"arrivals": 0, "departures": 0}
+            all_by_day[day]["arrivals"] += 1
+        
+        for flight in departures:
+            day = flight['departure_time'].strftime("%Y-%m-%d")
+            if day not in all_by_day:
+                all_by_day[day] = {"arrivals": 0, "departures": 0}
+            all_by_day[day]["departures"] += 1
     
-    # Initialiser les compteurs par heure
-    hourly_dist = {hour: 0 for hour in range(24)}
-    
-    # Compter les arrivées par heure
-    for flight in flights_data["arrivals"]:
-        hour = flight["arrival_time"].hour
-        hourly_dist[hour] += 1
-    
-    # Compter les départs par heure
-    for flight in flights_data["departures"]:
-        hour = flight["departure_time"].hour
-        hourly_dist[hour] += 1
-    
-    return hourly_dist
+    return {
+        "arrivals": all_arrivals,
+        "departures": all_departures,
+        "total": len(all_arrivals) + len(all_departures),
+        "by_day": all_by_day,
+        "weeks": weeks
+    }
 
 
-def get_current_states_in_area():
+def get_current_flights_in_area():
     """
-    Récupère les avions actuellement dans la zone de Beauvais via OpenSky.
-    Alternative gratuite à FlightRadar24.
+    Récupère les avions actuellement dans la zone de Beauvais.
     
     Returns:
-        list: Liste des avions dans la zone
+        list: Liste des avions avec leurs positions
     """
-    endpoint = f"{BASE_URL}/states/all"
+    url = f"{BASE_URL}/states/all"
     params = {
         "lamin": BBOX["lamin"],
         "lamax": BBOX["lamax"],
@@ -199,7 +232,8 @@ def get_current_states_in_area():
     }
     
     try:
-        response = requests.get(endpoint, params=params, timeout=30)
+        auth = get_auth()
+        response = requests.get(url, params=params, auth=auth, timeout=30)
         
         if response.status_code == 200:
             data = response.json()
@@ -207,18 +241,19 @@ def get_current_states_in_area():
             
             flights = []
             for state in states:
-                flights.append({
-                    "icao24": state[0],
-                    "callsign": (state[1] or "N/A").strip(),
-                    "origin_country": state[2],
-                    "longitude": state[5],
-                    "latitude": state[6],
-                    "altitude": state[7],  # mètres (géométrique)
-                    "on_ground": state[8],
-                    "velocity": state[9],  # m/s
-                    "heading": state[10],
-                    "vertical_rate": state[11]
-                })
+                if len(state) >= 12:
+                    flights.append({
+                        "icao24": state[0],
+                        "callsign": (state[1] or "N/A").strip(),
+                        "origin_country": state[2],
+                        "longitude": state[5],
+                        "latitude": state[6],
+                        "altitude": state[7] if state[7] else 0,
+                        "on_ground": state[8],
+                        "velocity": state[9] if state[9] else 0,
+                        "heading": state[10] if state[10] else 0,
+                        "vertical_rate": state[11] if state[11] else 0
+                    })
             
             return flights
         else:
@@ -226,29 +261,101 @@ def get_current_states_in_area():
             return []
             
     except requests.RequestException as e:
-        print(f"Erreur lors de la récupération des états : {e}")
+        print(f"Erreur réseau: {e}")
         return []
 
 
-# Code pour tester le module directement
+def get_daily_flight_stats(days=7):
+    """
+    Retourne les statistiques de vols par jour.
+    
+    Args:
+        days (int): Nombre de jours
+    
+    Returns:
+        list: Liste de dicts avec date, arrivals, departures, total
+    """
+    data = get_historical_flights(days=days)
+    
+    stats = []
+    for date_str, counts in sorted(data['by_day'].items()):
+        stats.append({
+            "date": date_str,
+            "date_formatted": datetime.strptime(date_str, "%Y-%m-%d").strftime("%d/%m"),
+            "arrivals": counts["arrivals"],
+            "departures": counts["departures"],
+            "total": counts["arrivals"] + counts["departures"]
+        })
+    
+    return stats
+
+
+def test_connection():
+    """
+    Teste la connexion à l'API OpenSky.
+    
+    Returns:
+        dict: Statut de la connexion
+    """
+    auth = get_auth()
+    
+    if not auth:
+        return {
+            "status": "error",
+            "message": "Credentials non configurés. Vérifiez votre fichier .env"
+        }
+    
+    try:
+        # Test simple : récupérer les vols actuels
+        response = requests.get(
+            f"{BASE_URL}/states/all",
+            params={"lamin": 49, "lamax": 50, "lomin": 2, "lomax": 3},
+            auth=auth,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            return {
+                "status": "success",
+                "message": "Connexion OpenSky OK !",
+                "authenticated": True
+            }
+        elif response.status_code == 401:
+            return {
+                "status": "error",
+                "message": "Authentification échouée. Vérifiez vos credentials."
+            }
+        else:
+            return {
+                "status": "warning",
+                "message": f"Code HTTP {response.status_code}"
+            }
+            
+    except requests.RequestException as e:
+        return {
+            "status": "error",
+            "message": f"Erreur réseau: {e}"
+        }
+
+
+# Test du module
 if __name__ == "__main__":
-    print("=== Test du module OpenSky ===")
-    print()
+    print("=== Test du module OpenSky ===\n")
     
-    # Test des vols en temps réel
-    print("Avions actuellement dans la zone de Beauvais...")
-    current = get_current_states_in_area()
-    print(f"Avions détectés : {len(current)}")
-    for flight in current[:5]:
-        print(f"  - {flight['callsign']} | Alt: {flight['altitude']}m | {flight['origin_country']}")
+    # Test connexion
+    print("1. Test de connexion...")
+    result = test_connection()
+    print(f"   {result['status'].upper()}: {result['message']}\n")
     
-    print()
-    
-    # Test des vols historiques
-    print("Vols des 7 derniers jours à Beauvais (LFOB)...")
-    end = datetime.now()
-    begin = end - timedelta(days=7)
-    historical = get_historical_flights_in_area(begin, end)
-    print(f"Arrivées : {len(historical['arrivals'])}")
-    print(f"Départs : {len(historical['departures'])}")
-    print(f"Total : {historical['total']}")
+    if result['status'] == 'success':
+        # Test historique
+        print("2. Récupération de l'historique (7 jours)...")
+        data = get_historical_flights(days=7)
+        print(f"   Arrivées: {len(data['arrivals'])}")
+        print(f"   Départs: {len(data['departures'])}")
+        print(f"   Total: {data['total']}\n")
+        
+        # Stats par jour
+        print("3. Statistiques par jour:")
+        for day, counts in sorted(data['by_day'].items()):
+            print(f"   {day}: {counts['arrivals']} arr. / {counts['departures']} dep.")

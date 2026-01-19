@@ -1,7 +1,12 @@
 """
 Module pour récupérer les données météo de Beauvais via OpenMeteo API.
 
-Inclut : météo actuelle, prévisions 7 jours, et historique 30 jours.
+Inclut :
+- Météo actuelle
+- Prévisions 7 jours
+- Historique 30 jours
+- Historique LONG TERME (depuis 1940 !) via OpenMeteo Archive
+
 Documentation API : https://open-meteo.com/
 """
 
@@ -12,7 +17,7 @@ from datetime import datetime, timedelta
 BEAUVAIS_LAT = 49.4295
 BEAUVAIS_LON = 2.0807
 
-# URL de base des APIs OpenMeteo
+# URLs des APIs OpenMeteo
 BASE_URL = "https://api.open-meteo.com/v1/forecast"
 HISTORICAL_URL = "https://archive-api.open-meteo.com/v1/archive"
 
@@ -38,18 +43,18 @@ def get_current_weather():
     }
     
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         return data.get("current")
     except requests.RequestException as e:
-        print(f"Erreur lors de la récupération météo : {e}")
+        print(f"Erreur météo actuelle: {e}")
         return None
 
 
 def get_hourly_forecast(days=1):
     """
-    Récupère les prévisions horaires pour les prochains jours.
+    Récupère les prévisions horaires.
     
     Args:
         days (int): Nombre de jours de prévision (1 à 7)
@@ -71,12 +76,12 @@ def get_hourly_forecast(days=1):
     }
     
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         return data.get("hourly")
     except requests.RequestException as e:
-        print(f"Erreur lors de la récupération des prévisions : {e}")
+        print(f"Erreur prévisions horaires: {e}")
         return None
 
 
@@ -102,12 +107,12 @@ def get_7day_forecast():
     }
     
     try:
-        response = requests.get(BASE_URL, params=params)
+        response = requests.get(BASE_URL, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         return data.get("daily")
     except requests.RequestException as e:
-        print(f"Erreur lors de la récupération des prévisions 7 jours : {e}")
+        print(f"Erreur prévisions 7 jours: {e}")
         return None
 
 
@@ -116,12 +121,12 @@ def get_historical_weather(days=30):
     Récupère l'historique météo des X derniers jours.
     
     Args:
-        days (int): Nombre de jours d'historique (max 90)
+        days (int): Nombre de jours d'historique (max 90 pour cette fonction)
     
     Returns:
         dict: Données historiques journalières ou None si erreur
     """
-    end_date = datetime.now() - timedelta(days=1)  # Hier (données complètes)
+    end_date = datetime.now() - timedelta(days=1)
     start_date = end_date - timedelta(days=days)
     
     params = {
@@ -142,12 +147,160 @@ def get_historical_weather(days=30):
     }
     
     try:
-        response = requests.get(HISTORICAL_URL, params=params)
+        response = requests.get(HISTORICAL_URL, params=params, timeout=30)
         response.raise_for_status()
         data = response.json()
         return data.get("daily")
     except requests.RequestException as e:
-        print(f"Erreur lors de la récupération de l'historique météo : {e}")
+        print(f"Erreur historique météo: {e}")
+        return None
+
+
+def get_long_term_historical_weather(start_year, end_year=None):
+    """
+    🆕 Récupère l'historique météo sur PLUSIEURS ANNÉES.
+    OpenMeteo Archive fournit des données depuis 1940 !
+    
+    Args:
+        start_year (int): Année de début (ex: 2011)
+        end_year (int): Année de fin (défaut: année actuelle - 1)
+    
+    Returns:
+        dict: Données historiques avec statistiques annuelles
+    """
+    if end_year is None:
+        end_year = datetime.now().year - 1
+    
+    start_date = f"{start_year}-01-01"
+    end_date = f"{end_year}-12-31"
+    
+    print(f"Récupération météo de {start_year} à {end_year}...")
+    
+    params = {
+        "latitude": BEAUVAIS_LAT,
+        "longitude": BEAUVAIS_LON,
+        "start_date": start_date,
+        "end_date": end_date,
+        "daily": [
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "temperature_2m_mean",
+            "precipitation_sum",
+            "wind_speed_10m_max",
+            "wind_gusts_10m_max",
+            "weather_code"
+        ],
+        "timezone": "Europe/Paris"
+    }
+    
+    try:
+        response = requests.get(HISTORICAL_URL, params=params, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        daily = data.get("daily", {})
+        
+        if not daily or not daily.get("time"):
+            return None
+        
+        # Calculer des statistiques par année
+        yearly_stats = {}
+        
+        for i, date_str in enumerate(daily["time"]):
+            year = date_str[:4]
+            
+            if year not in yearly_stats:
+                yearly_stats[year] = {
+                    "temps": [],
+                    "winds": [],
+                    "precips": [],
+                    "extreme_wind_days": 0,
+                    "rainy_days": 0,
+                    "fog_days": 0,
+                    "storm_days": 0
+                }
+            
+            temp = daily["temperature_2m_mean"][i]
+            wind = daily["wind_speed_10m_max"][i]
+            precip = daily["precipitation_sum"][i]
+            code = daily["weather_code"][i]
+            
+            if temp is not None:
+                yearly_stats[year]["temps"].append(temp)
+            if wind is not None:
+                yearly_stats[year]["winds"].append(wind)
+                if wind > 40:
+                    yearly_stats[year]["extreme_wind_days"] += 1
+            if precip is not None:
+                yearly_stats[year]["precips"].append(precip)
+                if precip > 1:
+                    yearly_stats[year]["rainy_days"] += 1
+            if code is not None:
+                if code in [45, 48]:
+                    yearly_stats[year]["fog_days"] += 1
+                if code in [95, 96, 99]:
+                    yearly_stats[year]["storm_days"] += 1
+        
+        # Calculer les moyennes
+        for year, stats in yearly_stats.items():
+            stats["avg_temp"] = sum(stats["temps"]) / len(stats["temps"]) if stats["temps"] else 0
+            stats["avg_wind"] = sum(stats["winds"]) / len(stats["winds"]) if stats["winds"] else 0
+            stats["max_wind"] = max(stats["winds"]) if stats["winds"] else 0
+            stats["total_precip"] = sum(stats["precips"]) if stats["precips"] else 0
+            # Nettoyer les listes pour économiser la mémoire
+            del stats["temps"]
+            del stats["winds"]
+            del stats["precips"]
+        
+        return {
+            "daily": daily,
+            "yearly_stats": yearly_stats,
+            "period": {
+                "start": start_date,
+                "end": end_date,
+                "years": end_year - start_year + 1
+            }
+        }
+        
+    except requests.RequestException as e:
+        print(f"Erreur historique long terme: {e}")
+        return None
+
+
+def get_weather_for_period(start_date, end_date):
+    """
+    Récupère la météo pour une période spécifique.
+    
+    Args:
+        start_date (str): Date de début "YYYY-MM-DD"
+        end_date (str): Date de fin "YYYY-MM-DD"
+    
+    Returns:
+        dict: Données météo pour la période
+    """
+    params = {
+        "latitude": BEAUVAIS_LAT,
+        "longitude": BEAUVAIS_LON,
+        "start_date": start_date,
+        "end_date": end_date,
+        "daily": [
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "temperature_2m_mean",
+            "precipitation_sum",
+            "wind_speed_10m_max",
+            "wind_gusts_10m_max",
+            "weather_code"
+        ],
+        "timezone": "Europe/Paris"
+    }
+    
+    try:
+        response = requests.get(HISTORICAL_URL, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("daily")
+    except requests.RequestException as e:
+        print(f"Erreur météo période: {e}")
         return None
 
 
@@ -179,57 +332,55 @@ def get_aviation_conditions_forecast():
         # Impact du vent
         if wind_max > 50:
             score -= 40
-            alerts.append(f"🌪️ Vent très fort ({wind_max} km/h)")
+            alerts.append(f"Vent très fort ({wind_max} km/h)")
         elif wind_max > 35:
             score -= 25
-            alerts.append(f"💨 Vent fort ({wind_max} km/h)")
+            alerts.append(f"Vent fort ({wind_max} km/h)")
         elif wind_max > 25:
             score -= 10
-            alerts.append(f"💨 Vent modéré ({wind_max} km/h)")
+            alerts.append(f"Vent modéré ({wind_max} km/h)")
         
         # Impact des rafales
         if wind_gusts and wind_gusts > 60:
             score -= 20
-            alerts.append(f"⚠️ Rafales dangereuses ({wind_gusts} km/h)")
+            alerts.append(f"Rafales dangereuses ({wind_gusts} km/h)")
         elif wind_gusts and wind_gusts > 45:
             score -= 10
-            alerts.append(f"⚠️ Rafales fortes ({wind_gusts} km/h)")
+            alerts.append(f"Rafales fortes ({wind_gusts} km/h)")
         
         # Impact des précipitations
         if precipitation > 20:
             score -= 25
-            alerts.append(f"🌧️ Fortes précipitations ({precipitation} mm)")
+            alerts.append(f"Fortes précipitations ({precipitation} mm)")
         elif precipitation > 10:
             score -= 15
-            alerts.append(f"🌧️ Précipitations modérées ({precipitation} mm)")
+            alerts.append(f"Précipitations modérées ({precipitation} mm)")
         elif precipitation > 5:
             score -= 5
-            alerts.append(f"🌧️ Légères précipitations ({precipitation} mm)")
+            alerts.append(f"Légères précipitations ({precipitation} mm)")
         
-        # Impact du code météo (brouillard, orage, neige)
-        if weather_code in [45, 48]:  # Brouillard
+        # Impact du code météo
+        if weather_code in [45, 48]:
             score -= 30
-            alerts.append("🌫️ Brouillard prévu")
-        elif weather_code in [95, 96, 99]:  # Orage
+            alerts.append("Brouillard prévu")
+        elif weather_code in [95, 96, 99]:
             score -= 35
-            alerts.append("⛈️ Orage prévu")
-        elif weather_code in [71, 73, 75, 77]:  # Neige
+            alerts.append("Orage prévu")
+        elif weather_code in [71, 73, 75, 77]:
             score -= 30
-            alerts.append("🌨️ Neige prévue")
+            alerts.append("Neige prévue")
         
-        # S'assurer que le score reste entre 0 et 100
         score = max(0, min(100, score))
         
-        # Déterminer le niveau d'alerte
         if score >= 80:
             level = "green"
-            status = "✅ Conditions favorables"
+            status = "Conditions favorables"
         elif score >= 50:
             level = "yellow"
-            status = "⚠️ Vigilance recommandée"
+            status = "Vigilance recommandée"
         else:
             level = "red"
-            status = "❌ Conditions difficiles"
+            status = "Conditions difficiles"
         
         aviation_forecast.append({
             "date": date,
@@ -249,9 +400,57 @@ def get_aviation_conditions_forecast():
     return aviation_forecast
 
 
+def calculate_aviation_score(wind_max, wind_gusts, precipitation, weather_code):
+    """
+    Calcule le score aviation pour des conditions météo données.
+    
+    Args:
+        wind_max (float): Vent maximum en km/h
+        wind_gusts (float): Rafales en km/h
+        precipitation (float): Précipitations en mm
+        weather_code (int): Code météo WMO
+    
+    Returns:
+        int: Score de 0 (très mauvais) à 100 (parfait)
+    """
+    score = 100
+    
+    # Vent
+    if wind_max and wind_max > 50:
+        score -= 40
+    elif wind_max and wind_max > 35:
+        score -= 25
+    elif wind_max and wind_max > 25:
+        score -= 10
+    
+    # Rafales
+    if wind_gusts and wind_gusts > 60:
+        score -= 20
+    elif wind_gusts and wind_gusts > 45:
+        score -= 10
+    
+    # Précipitations
+    if precipitation and precipitation > 20:
+        score -= 25
+    elif precipitation and precipitation > 10:
+        score -= 15
+    elif precipitation and precipitation > 5:
+        score -= 5
+    
+    # Code météo
+    if weather_code in [45, 48]:  # Brouillard
+        score -= 30
+    elif weather_code in [95, 96, 99]:  # Orage
+        score -= 35
+    elif weather_code in [71, 73, 75, 77]:  # Neige
+        score -= 30
+    
+    return max(0, min(100, score))
+
+
 def get_weather_code_description(code):
     """
-    Retourne la description d'un code météo WMO.
+    Retourne l'icône et la description d'un code météo WMO.
     """
     weather_codes = {
         0: ("☀️", "Ciel dégagé"),
@@ -266,8 +465,8 @@ def get_weather_code_description(code):
         61: ("🌧️", "Pluie légère"),
         63: ("🌧️", "Pluie modérée"),
         65: ("🌧️", "Pluie forte"),
-        66: ("🌧️❄️", "Pluie verglaçante légère"),
-        67: ("🌧️❄️", "Pluie verglaçante forte"),
+        66: ("🌧️", "Pluie verglaçante légère"),
+        67: ("🌧️", "Pluie verglaçante forte"),
         71: ("🌨️", "Neige légère"),
         73: ("🌨️", "Neige modérée"),
         75: ("🌨️", "Neige forte"),
@@ -278,42 +477,31 @@ def get_weather_code_description(code):
         85: ("🌨️", "Averses de neige légères"),
         86: ("🌨️", "Averses de neige fortes"),
         95: ("⛈️", "Orage"),
-        96: ("⛈️🌨️", "Orage avec grêle légère"),
-        99: ("⛈️🌨️", "Orage avec grêle forte")
+        96: ("⛈️", "Orage avec grêle légère"),
+        99: ("⛈️", "Orage avec grêle forte")
     }
     
     return weather_codes.get(code, ("❓", "Inconnu"))
 
 
-# Code pour tester le module directement
+# Test du module
 if __name__ == "__main__":
-    print("=== Test du module météo ===")
-    print()
+    print("=== Test du module météo ===\n")
     
     # Météo actuelle
+    print("1. Météo actuelle à Beauvais:")
     weather = get_current_weather()
     if weather:
-        print("Météo actuelle à Beauvais :")
-        print(f"  Température : {weather['temperature_2m']}°C")
-        print(f"  Humidité : {weather['relative_humidity_2m']}%")
-        print(f"  Vent : {weather['wind_speed_10m']} km/h")
+        print(f"   Température: {weather['temperature_2m']}°C")
+        print(f"   Vent: {weather['wind_speed_10m']} km/h")
+        print(f"   Humidité: {weather['relative_humidity_2m']}%")
     
     print()
     
-    # Prévisions 7 jours
-    print("Prévisions 7 jours avec impact aviation :")
-    forecast = get_aviation_conditions_forecast()
-    if forecast:
-        for day in forecast:
-            print(f"  {day['date_formatted']}: Score {day['score']}/100 - {day['status']}")
-            for alert in day['alerts']:
-                print(f"    → {alert}")
-    
-    print()
-    
-    # Historique
-    print("Historique météo (30 derniers jours) :")
-    history = get_historical_weather(days=30)
-    if history:
-        print(f"  Jours récupérés : {len(history['time'])}")
-        print(f"  Temp moyenne du mois : {sum(history['temperature_2m_mean'])/len(history['temperature_2m_mean']):.1f}°C")
+    # Test historique long terme
+    print("2. Test historique long terme (2020-2024):")
+    long_data = get_long_term_historical_weather(2020, 2024)
+    if long_data:
+        print(f"   Période: {long_data['period']['years']} années")
+        for year, stats in sorted(long_data['yearly_stats'].items()):
+            print(f"   {year}: Temp moy={stats['avg_temp']:.1f}°C, Jours vent fort={stats['extreme_wind_days']}")

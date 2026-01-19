@@ -19,7 +19,7 @@ Thumbs.db
 # Streamlit
 .streamlit/secrets.toml
 
-# Données locales (si fichiers volumineux)
+# Données locales
 data/*.csv
 data/*.json
 !data/.gitkeep
@@ -27,5 +27,5 @@ data/*.json
 # Logs
 *.log
 
-# Variables d'environnement
+# Variables d'environnement (IMPORTANT !)
 .env
