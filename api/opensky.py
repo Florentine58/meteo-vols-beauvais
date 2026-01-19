@@ -37,10 +37,26 @@ BASE_URL = "https://opensky-network.org/api"
 def get_auth():
     """
     Retourne les credentials pour l'authentification HTTP Basic.
-    OpenSky utilise le client_id comme username et client_secret comme password.
+    OpenSky utilise l'email comme username et le secret comme password.
+    
+    Formats acceptés dans .env:
+    - OPENSKY_CLIENT_ID = email@example.com-api-client  -> extrait email
+    - OPENSKY_CLIENT_ID = email@example.com             -> utilise directement
     """
     if OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET:
-        return (OPENSKY_CLIENT_ID.replace("-api-client", ""), OPENSKY_CLIENT_SECRET)
+        # Extraire l'email si format "email-api-client"
+        username = OPENSKY_CLIENT_ID.replace("-api-client", "")
+        # Si le username contient encore des tirets après le @, c'est l'email complet
+        print(f"[OpenSky] Auth avec: {username[:3]}***")
+        return (username, OPENSKY_CLIENT_SECRET)
+    return None
+
+
+def get_auth_alternative():
+    """
+    Méthode alternative : essayer sans authentification.
+    L'API OpenSky permet certaines requêtes sans auth (avec rate limiting).
+    """
     return None
 
 
@@ -107,10 +123,29 @@ def get_flights_by_airport(airport_icao="LFOB", begin=None, end=None, arrival=Tr
             print(f"Aucun vol trouvé pour {airport_icao}")
             return []
         elif response.status_code == 401:
-            print("Erreur d'authentification OpenSky. Vérifiez vos credentials.")
+            print("=" * 50)
+            print("ERREUR OPENSKY 401 - Authentification échouée")
+            print("Solutions possibles:")
+            print("1. Vérifiez votre fichier .env")
+            print("2. Allez sur https://opensky-network.org et vérifiez votre compte")
+            print("3. L'email doit être confirmé")
+            print("=" * 50)
+            # Essayer sans auth
+            print("Tentative sans authentification...")
+            try:
+                response_no_auth = requests.get(url, params=params, timeout=30)
+                if response_no_auth.status_code == 200:
+                    print("Succès sans auth !")
+                    return response_no_auth.json()
+            except:
+                pass
             return []
         elif response.status_code == 403:
-            print("Accès refusé. Vérifiez que votre compte OpenSky est activé.")
+            print("=" * 50)
+            print("ERREUR OPENSKY 403 - Accès refusé")
+            print("L'endpoint /flights nécessite un compte vérifié")
+            print("Allez sur https://opensky-network.org/index.php/-user/register")
+            print("=" * 50)
             return []
         else:
             print(f"Erreur API OpenSky: {response.status_code} - {response.text}")
