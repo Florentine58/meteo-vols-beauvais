@@ -7,6 +7,7 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 
 # Imports des modules API
@@ -209,8 +210,8 @@ with tab1:
         ))
         
         # Ligne de tendance
-        z = pd.np.polyfit(range(len(df_yearly)), df_yearly['Temp. moyenne (°C)'], 1) if len(df_yearly) > 1 else [0, 0]
-        p = pd.np.poly1d(z)
+        z = np.polyfit(range(len(df_yearly)), df_yearly['Temp. moyenne (°C)'], 1) if len(df_yearly) > 1 else [0, 0]
+        p = np.poly1d(z)
         fig_temp.add_trace(go.Scatter(
             x=df_yearly['Année'],
             y=p(range(len(df_yearly))),
