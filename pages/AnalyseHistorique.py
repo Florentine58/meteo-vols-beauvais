@@ -601,6 +601,9 @@ with tab4:
         
         st.markdown("")
         
+        # Convertir les années en int pour les calculs
+        df_years['Année'] = df_years['Année'].astype(int)
+        
         # Graphique évolution température
         fig_temp = go.Figure()
         fig_temp.add_trace(go.Scatter(
@@ -612,10 +615,10 @@ with tab4:
         ))
         
         # Ligne de tendance
-        z = np.polyfit(df_years['Année'], df_years['Temp Moy'], 1)
+        z = np.polyfit(df_years['Année'].values, df_years['Temp Moy'].values, 1)
         p = np.poly1d(z)
         fig_temp.add_trace(go.Scatter(
-            x=df_years['Année'], y=p(df_years['Année']),
+            x=df_years['Année'], y=p(df_years['Année'].values),
             mode='lines',
             line=dict(color='#EF4444', width=1, dash='dash'),
             name='Tendance'
