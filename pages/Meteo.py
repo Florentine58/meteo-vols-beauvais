@@ -13,7 +13,6 @@ from api.weather import get_current_weather, get_hourly_forecast, BEAUVAIS_LAT, 
 # Configuration de la page
 st.set_page_config(
     page_title="Météo Beauvais",
-    page_icon="🌤️",
     layout="wide"
 )
 
@@ -29,7 +28,7 @@ st.divider()
 
 # SECTION 1 : Météo actuelle
 
-st.header("📍 Conditions actuelles")
+st.header("Conditions actuelles")
 
 weather = get_current_weather()
 
@@ -107,7 +106,7 @@ st.divider()
 
 # SECTION 2 : Prévisions horaires
 
-st.header("📈 Prévisions sur 24 heures")
+st.header("Prévisions sur 24 heures")
 
 forecast = get_hourly_forecast(days=1)
 
@@ -179,7 +178,7 @@ st.divider()
 
 # SECTION 3 : Impact sur l'aviation
 
-st.header("✈️ Impact sur l'aviation")
+st.header("Impact sur l'aviation")
 
 if weather:
     # Analyse des conditions pour l'aviation
