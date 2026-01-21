@@ -58,16 +58,16 @@ def get_flightradar_airport_flights():
         details = None
         last_err = None
 
-        # 1) Essai direct avec ICAO
+        # 1) Essai direct avec IATA (souvent plus stable avec cette lib)
         try:
-            details = fr_api.get_airport_details(AIRPORT_ICAO, flight_limit=50)
+            details = fr_api.get_airport_details(AIRPORT_IATA, flight_limit=50)
         except Exception as e:
             last_err = e
 
-        # 2) Essai direct avec IATA
+        # 2) Essai avec ICAO
         if details is None:
             try:
-                details = fr_api.get_airport_details(AIRPORT_IATA, flight_limit=50)
+                details = fr_api.get_airport_details(AIRPORT_ICAO, flight_limit=50)
             except Exception as e:
                 last_err = e
 
@@ -88,29 +88,63 @@ def get_flightradar_airport_flights():
 
         if details is None:
             raise RuntimeError(f"Impossible d'obtenir les détails aéroport via FlightRadar24. Dernière erreur: {last_err}")
+        print("🧪 DEBUG | details type:", type(details))
+        if isinstance(details, dict):
+            print("🧪 DEBUG | details keys:", list(details.keys()))
+        else:
+            print("🧪 DEBUG | details is not dict:", details)
+
 
         plugin_data = details.get('airport', {}).get('pluginData', {})
         schedule = plugin_data.get('schedule', {})
 
-        arrivals_raw = schedule.get('arrivals', {}).get('data', [])
-        departures_raw = schedule.get('departures', {}).get('data', [])
+        print("🧪 DEBUG | schedule type:", type(schedule))
+        if isinstance(schedule, dict):
+           print("🧪 DEBUG | schedule keys:", list(schedule.keys()))
+
+
+        arrivals_raw = schedule.get('arrivals', {}).get('data', []) or []
+        departures_raw = schedule.get('departures', {}).get('data', []) or []
+
+        print("🧪 DEBUG | arrivals_raw type:", type(arrivals_raw), "len:", len(arrivals_raw))
+        print("🧪 DEBUG | departures_raw type:", type(departures_raw), "len:", len(departures_raw))
+
+        if arrivals_raw:
+            print("🧪 DEBUG | arrivals_raw[0] type:", type(arrivals_raw[0]))
+            print("🧪 DEBUG | arrivals_raw[0] content:", arrivals_raw[0])
+
+        if departures_raw:
+            print("🧪 DEBUG | departures_raw[0] type:", type(departures_raw[0]))
+            print("🧪 DEBUG | departures_raw[0] content:", departures_raw[0])
+
+        # ✅ Nettoyage : FR24 renvoie parfois des None ou des types bizarres
+        arrivals_raw = [x for x in arrivals_raw if isinstance(x, dict)]
+        departures_raw = [x for x in departures_raw if isinstance(x, dict)]
 
         arrivals = []
         for arr in arrivals_raw:
-            flight = arr.get('flight', {})
-            identification = flight.get('identification', {})
-            airport_info = flight.get('airport', {})
-            aircraft = flight.get('aircraft', {})
-            time_info = flight.get('time', {})
+          flight = arr.get('flight') or {}
+          if not isinstance(flight, dict):
+            continue
 
-            ts = (time_info.get('real', {}).get('arrival') or
+        identification = flight.get('identification') or {}
+        airport_info = flight.get('airport') or {}
+        aircraft = flight.get('aircraft') or {}
+        time_info = flight.get('time') or {}
+
+        if not isinstance(identification, dict): identification = {}
+        if not isinstance(airport_info, dict): airport_info = {}
+        if not isinstance(aircraft, dict): aircraft = {}
+        if not isinstance(time_info, dict): time_info = {}
+
+        ts = (time_info.get('real', {}).get('arrival') or
                   time_info.get('estimated', {}).get('arrival') or
                   time_info.get('scheduled', {}).get('arrival') or 0)
 
-            flight_time = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
-            icao24 = aircraft.get('hex', '').lower() if aircraft.get('hex') else None
+        flight_time = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
+        icao24 = aircraft.get('hex', '').lower() if aircraft.get('hex') else None
 
-            arrivals.append({
+        arrivals.append({
                 "callsign": identification.get('number', {}).get('default', 'N/A'),
                 "icao24": icao24,
                 "registration": aircraft.get('registration', 'N/A'),
