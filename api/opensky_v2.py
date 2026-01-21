@@ -47,45 +47,69 @@ _token_cache = {"token": None, "expires": None}
 def get_flightradar_airport_flights():
     """
     Récupère les vols de Beauvais via FlightRadar24.
-    GRATUIT et sans limite !
-    
-    Returns:
-        dict: {"arrivals": [...], "departures": [...]}
+    Compatible avec plusieurs versions de la lib.
     """
     try:
         from FlightRadar24 import FlightRadar24API
         fr_api = FlightRadar24API()
-        
+
         print("   🔍 Connexion FlightRadar24...")
-        
-        # Récupérer l'aéroport
-        airport = fr_api.get_airport(AIRPORT_ICAO)
-        details = fr_api.get_airport_details(airport, flight_limit=50)
-        
+
+        details = None
+        last_err = None
+
+        # 1) Essai direct avec ICAO
+        try:
+            details = fr_api.get_airport_details(AIRPORT_ICAO, flight_limit=50)
+        except Exception as e:
+            last_err = e
+
+        # 2) Essai direct avec IATA
+        if details is None:
+            try:
+                details = fr_api.get_airport_details(AIRPORT_IATA, flight_limit=50)
+            except Exception as e:
+                last_err = e
+
+        # 3) Essai via get_airport (certaines versions exigent l'objet)
+        if details is None:
+            try:
+                airport_obj = fr_api.get_airport(AIRPORT_IATA)
+                # selon versions, get_airport_details accepte objet, dict ou code
+                try:
+                    details = fr_api.get_airport_details(airport_obj, flight_limit=50)
+                except Exception:
+                    # fallback: essayer d'extraire des attributs
+                    airport_code = getattr(airport_obj, "icao", None) or getattr(airport_obj, "iata", None)
+                    if airport_code:
+                        details = fr_api.get_airport_details(airport_code, flight_limit=50)
+            except Exception as e:
+                last_err = e
+
+        if details is None:
+            raise RuntimeError(f"Impossible d'obtenir les détails aéroport via FlightRadar24. Dernière erreur: {last_err}")
+
         plugin_data = details.get('airport', {}).get('pluginData', {})
         schedule = plugin_data.get('schedule', {})
-        
-        # Parser les arrivées
+
         arrivals_raw = schedule.get('arrivals', {}).get('data', [])
+        departures_raw = schedule.get('departures', {}).get('data', [])
+
         arrivals = []
-        
         for arr in arrivals_raw:
             flight = arr.get('flight', {})
             identification = flight.get('identification', {})
             airport_info = flight.get('airport', {})
             aircraft = flight.get('aircraft', {})
             time_info = flight.get('time', {})
-            
-            # Timestamp
-            ts = (time_info.get('real', {}).get('arrival') or 
-                  time_info.get('estimated', {}).get('arrival') or 
+
+            ts = (time_info.get('real', {}).get('arrival') or
+                  time_info.get('estimated', {}).get('arrival') or
                   time_info.get('scheduled', {}).get('arrival') or 0)
-            
+
             flight_time = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
-            
-            # ICAO24 (hex code de l'avion)
             icao24 = aircraft.get('hex', '').lower() if aircraft.get('hex') else None
-            
+
             arrivals.append({
                 "callsign": identification.get('number', {}).get('default', 'N/A'),
                 "icao24": icao24,
@@ -103,25 +127,22 @@ def get_flightradar_airport_flights():
                 "has_track": False,
                 "track": None
             })
-        
-        # Parser les départs
-        departures_raw = schedule.get('departures', {}).get('data', [])
+
         departures = []
-        
         for dep in departures_raw:
             flight = dep.get('flight', {})
             identification = flight.get('identification', {})
             airport_info = flight.get('airport', {})
             aircraft = flight.get('aircraft', {})
             time_info = flight.get('time', {})
-            
-            ts = (time_info.get('real', {}).get('departure') or 
-                  time_info.get('estimated', {}).get('departure') or 
+
+            ts = (time_info.get('real', {}).get('departure') or
+                  time_info.get('estimated', {}).get('departure') or
                   time_info.get('scheduled', {}).get('departure') or 0)
-            
+
             flight_time = datetime.fromtimestamp(ts, tz=timezone.utc) if ts else None
             icao24 = aircraft.get('hex', '').lower() if aircraft.get('hex') else None
-            
+
             departures.append({
                 "callsign": identification.get('number', {}).get('default', 'N/A'),
                 "icao24": icao24,
@@ -139,13 +160,14 @@ def get_flightradar_airport_flights():
                 "has_track": False,
                 "track": None
             })
-        
+
         print(f"   ✓ FlightRadar24: {len(arrivals)} arrivées, {len(departures)} départs")
         return {"arrivals": arrivals, "departures": departures}
-        
+
     except Exception as e:
         print(f"   ❌ Erreur FlightRadar24: {e}")
         return {"arrivals": [], "departures": []}
+
 
 
 # ============================================================================
