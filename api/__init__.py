@@ -24,7 +24,7 @@ from api.flights import (
     BVA_LON
 )
 
-# Modules optionnels (nécessitent configuration)
+# Modules qualité de l'air
 try:
     from api.air_quality import (
         get_current_air_quality,
@@ -34,12 +34,30 @@ try:
 except ImportError:
     pass
 
+# Module OpenSky V2 pour trajectoires historiques
 try:
     from api.opensky_v2 import (
         get_current_flights_in_area,
         get_flight_track,
-        get_historical_flights,
-        test_connection as test_opensky_connection
+        get_beauvais_flights_with_tracks,
+        get_historical_flights_by_day,
+        get_airport_coords,
+        estimate_flight_path,
+        test_connection as test_opensky_connection,
+        BVA_LAT as OPENSKY_BVA_LAT,
+        BVA_LON as OPENSKY_BVA_LON,
+        AIRPORT_ICAO
+    )
+except ImportError:
+    pass
+
+# Module AeroDataBox
+try:
+    from api.aerodatabox import (
+        get_airport_departures,
+        get_airport_arrivals,
+        get_delay_statistics,
+        test_connection as test_aerodatabox_connection
     )
 except ImportError:
     pass
