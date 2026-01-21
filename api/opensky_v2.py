@@ -16,6 +16,43 @@ import os
 from dotenv import load_dotenv
 import time
 
+import math
+
+APPROACH_RADIUS_KM = 30
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    """Distance en km entre 2 points."""
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dlon/2)**2
+    return 2 * R * math.asin(math.sqrt(a))
+
+def crop_track_to_radius(track, center_lat=BVA_LAT, center_lon=BVA_LON, radius_km=APPROACH_RADIUS_KM):
+    """Garde uniquement les waypoints dans un rayon autour de BVA."""
+    if not track or not track.get("waypoints"):
+        return track
+
+    kept = []
+    for wp in track["waypoints"]:
+        lat = wp.get("lat")
+        lon = wp.get("lon")
+        if lat is None or lon is None:
+            continue
+        if haversine_km(lat, lon, center_lat, center_lon) <= radius_km:
+            kept.append(wp)
+
+    # on considère une trajectoire "valide" si on a assez de points dans le rayon
+    if len(kept) >= 6:
+        track = dict(track)
+        track["waypoints"] = kept
+        track["cropped_radius_km"] = radius_km
+        return track
+
+    return None
+
+
 # Charger les variables d'environnement
 load_dotenv()
 
@@ -118,6 +155,12 @@ def get_flightradar_airport_flights():
             real = time_info.get("real") or {}
             estimated = time_info.get("estimated") or {}
             scheduled = time_info.get("scheduled") or {}
+            scheduled_arrival_ts = scheduled.get("arrival") or 0
+            estimated_arrival_ts = estimated.get("arrival") or 0
+            real_arrival_ts = real.get("arrival") or 0
+            scheduled_dep_ts = scheduled.get("departure") or 0
+            estimated_dep_ts = estimated.get("departure") or 0
+            real_dep_ts = real.get("departure") or 0
 
             ts = (real.get("arrival")
                   or estimated.get("arrival")
@@ -151,6 +194,12 @@ def get_flightradar_airport_flights():
                 "timestamp": ts,
                 "first_seen": flight_time,
                 "last_seen": flight_time,
+                "scheduled_arrival_ts": scheduled_arrival_ts,
+                "estimated_arrival_ts": estimated_arrival_ts,
+                "real_arrival_ts": real_arrival_ts,
+                "scheduled_departure_ts": scheduled_dep_ts,
+                "estimated_departure_ts": estimated_dep_ts,
+                "real_departure_ts": real_dep_ts,
                 "is_arrival": True,
                 "has_track": False,
                 "track": None
@@ -336,34 +385,71 @@ def get_beauvais_flights_with_tracks(hours=24, max_tracks=20):
     departures = fr_data.get("departures", [])
     
     # Étape 2 : Trajectoires OpenSky
+   # Étape 2 : Trajectoires OpenSky
     all_flights = arrivals + departures
     tracks_retrieved = 0
-    
+
     token = get_oauth_token()
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+
     if token and all_flights:
         print(f"   🔍 Récupération trajectoires OpenSky (max {max_tracks})...")
-        
+
         # Trier par timestamp (plus récents d'abord)
         all_flights.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
-        
+
+        # On évite de demander des tracks pour des vols futurs / trop récents
+        MIN_AGE_SECONDS = 10 * 60  # 10 minutes
+
         for flight in all_flights[:max_tracks]:
             icao24 = flight.get('icao24')
             if not icao24 or len(icao24) < 4:
                 continue
-            
-            ts = flight.get('timestamp', 0)
-            track = get_flight_track(icao24, timestamp=ts)
-            time.sleep(0.3)  # Rate limit
-            
-            if track and track.get('waypoints'):
-                flight['track'] = track
-                flight['has_track'] = True
+
+            # candidates timestamps (on essaie plusieurs sources)
+            candidate_times = [
+                flight.get("real_arrival_ts", 0),
+                flight.get("estimated_arrival_ts", 0),
+                flight.get("scheduled_arrival_ts", 0),
+                flight.get("real_departure_ts", 0),
+                flight.get("estimated_departure_ts", 0),
+                flight.get("scheduled_departure_ts", 0),
+                flight.get("timestamp", 0),
+            ]
+
+            # garder uniques et >0
+            seen = set()
+            candidate_times = [t for t in candidate_times if isinstance(t, int) and t > 0 and not (t in seen or seen.add(t))]
+
+            got = None
+            for ts in candidate_times:
+                # skip futur / trop récent
+                if ts > now_ts - MIN_AGE_SECONDS:
+                    continue
+
+                track = get_flight_track(icao24, timestamp=ts)
+                time.sleep(0.3)  # rate limit
+
+                if track and track.get("waypoints"):
+                    # 🔥 on garde uniquement l’approche/départ autour de BVA (30 km)
+                    cropped = crop_track_to_radius(track, radius_km=APPROACH_RADIUS_KM)
+                    if cropped and cropped.get("waypoints"):
+                        got = cropped
+                        break
+
+            if got:
+                flight["track"] = got
+                flight["has_track"] = True
                 tracks_retrieved += 1
-                print(f"   ✓ Trajectoire {flight['callsign']}: {len(track['waypoints'])} pts")
-        
-        print(f"   ✓ Total trajectoires: {tracks_retrieved}")
+                print(f"   ✓ Trajectoire {flight.get('callsign','N/A')}: {len(got['waypoints'])} pts (dans {APPROACH_RADIUS_KM}km)")
+            else:
+                flight["track"] = None
+                flight["has_track"] = False
+
+        print(f"   ✓ Total trajectoires (dans {APPROACH_RADIUS_KM}km): {tracks_retrieved}")
     else:
         print("   ⚠️ OpenSky non authentifié - trajectoires estimées uniquement")
+
     
     # Séparer à nouveau
     arrivals_final = [f for f in all_flights if f.get('is_arrival', False)]

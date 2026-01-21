@@ -236,6 +236,8 @@ total_flights = flight_data['total_flights']
 arrivals_count = len(flight_data['arrivals'])
 departures_count = len(flight_data['departures'])
 tracks_count = flight_data['tracks_retrieved']
+# Ratio trajectoires réelles / estimées
+real_pct = (tracks_count / total_flights * 100) if total_flights else 0
 
 with m1:
     st.markdown(f"""
@@ -268,6 +270,11 @@ with m4:
         <div class="stat-label">Trajectoires réelles</div>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown(
+        f"<small style='color:#94A3B8'>{real_pct:.0f}% des vols</small>",
+        unsafe_allow_html=True
+    )
+
 
 with m5:
     if weather_data:
