@@ -29,8 +29,13 @@ def haversine_km(lat1, lon1, lat2, lon2):
     a = math.sin(dlat/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dlon/2)**2
     return 2 * R * math.asin(math.sqrt(a))
 
-def crop_track_to_radius(track, center_lat=BVA_LAT, center_lon=BVA_LON, radius_km=APPROACH_RADIUS_KM):
+def crop_track_to_radius(track, center_lat=None, center_lon=None, radius_km=APPROACH_RADIUS_KM):
     """Garde uniquement les waypoints dans un rayon autour de BVA."""
+    if center_lat is None:
+        center_lat = BVA_LAT
+    if center_lon is None:
+        center_lon = BVA_LON
+
     if not track or not track.get("waypoints"):
         return track
 
@@ -43,7 +48,7 @@ def crop_track_to_radius(track, center_lat=BVA_LAT, center_lon=BVA_LON, radius_k
         if haversine_km(lat, lon, center_lat, center_lon) <= radius_km:
             kept.append(wp)
 
-    # on considère une trajectoire "valide" si on a assez de points dans le rayon
+    # trajectoire valide si assez de points dans le rayon
     if len(kept) >= 6:
         track = dict(track)
         track["waypoints"] = kept
@@ -51,6 +56,7 @@ def crop_track_to_radius(track, center_lat=BVA_LAT, center_lon=BVA_LON, radius_k
         return track
 
     return None
+
 
 
 # Charger les variables d'environnement
