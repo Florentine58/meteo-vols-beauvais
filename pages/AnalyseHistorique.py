@@ -17,7 +17,6 @@ from api.aerodatabox import get_delay_statistics, get_airport_info, test_connect
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Analyse",
-    page_icon="📊",
     layout="wide"
 )
 

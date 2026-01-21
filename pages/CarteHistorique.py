@@ -376,8 +376,9 @@ with col_map:
     for flight in all_flights:
         # Déterminer le score météo du jour du vol
         weather_score = None
-        if flight.get('last_seen'):
-            day_str = flight['last_seen'].strftime("%Y-%m-%d")
+        flight_date = flight.get('last_seen') or flight.get('first_seen')
+        if flight_date:
+            day_str = flight_date.strftime("%Y-%m-%d")
             weather_score = weather_scores.get(day_str, 50)
         
         color = get_track_color(flight, weather_score)
@@ -385,7 +386,7 @@ with col_map:
         # Trajectoire réelle disponible ?
         if flight.get('has_track') and flight.get('track'):
             waypoints = flight['track']['waypoints']
-            coords = [[wp['lat'], wp['lon']] for wp in waypoints if wp['lat'] and wp['lon']]
+            coords = [[wp['lat'], wp['lon']] for wp in waypoints if wp.get('lat') and wp.get('lon')]
             
             if len(coords) >= 2:
                 # Tracer la vraie trajectoire
@@ -394,12 +395,11 @@ with col_map:
                     color=color,
                     weight=3,
                     opacity=0.8,
-                    tooltip=f"✈️ {flight['callsign']} | {flight['origin']} → {flight['destination']}"
+                    tooltip=f"✈️ {flight['callsign']} | {flight['origin']} → {flight['destination']} (réel)"
                 ).add_to(m)
                 
                 # Marqueur au point de départ/arrivée
                 if flight.get('is_arrival'):
-                    # Point d'entrée dans la zone
                     folium.CircleMarker(
                         location=coords[0],
                         radius=4,
@@ -409,7 +409,6 @@ with col_map:
                         tooltip=f"Entrée: {flight['callsign']} depuis {flight['origin']}"
                     ).add_to(m)
                 else:
-                    # Point de sortie
                     folium.CircleMarker(
                         location=coords[-1],
                         radius=4,
@@ -421,7 +420,7 @@ with col_map:
                 
                 flights_with_track += 1
         else:
-            # Trajectoire estimée (ligne droite)
+            # Trajectoire estimée (ligne droite) — TOUJOURS tracer si on a les coordonnées
             if flight.get('is_arrival'):
                 origin_coords = get_airport_coords(flight.get('origin'))
                 if origin_coords:
@@ -432,10 +431,21 @@ with col_map:
                             coords,
                             color=color,
                             weight=2,
-                            opacity=0.4,
+                            opacity=0.5,
                             dash_array='5, 5',
                             tooltip=f"✈️ {flight['callsign']} | {flight['origin']} → BVA (estimé)"
                         ).add_to(m)
+                        
+                        # Marqueur origine
+                        folium.CircleMarker(
+                            location=[origin_coords[0], origin_coords[1]],
+                            radius=5,
+                            color=color,
+                            fill=True,
+                            fillOpacity=0.6,
+                            tooltip=f"Origine: {flight['origin']}"
+                        ).add_to(m)
+                        
                         flights_estimated += 1
             else:
                 dest_coords = get_airport_coords(flight.get('destination'))
@@ -447,10 +457,21 @@ with col_map:
                             coords,
                             color=color,
                             weight=2,
-                            opacity=0.4,
+                            opacity=0.5,
                             dash_array='5, 5',
                             tooltip=f"✈️ {flight['callsign']} | BVA → {flight['destination']} (estimé)"
                         ).add_to(m)
+                        
+                        # Marqueur destination
+                        folium.CircleMarker(
+                            location=[dest_coords[0], dest_coords[1]],
+                            radius=5,
+                            color=color,
+                            fill=True,
+                            fillOpacity=0.6,
+                            tooltip=f"Destination: {flight['destination']}"
+                        ).add_to(m)
+                        
                         flights_estimated += 1
     
     # Afficher la carte
@@ -670,12 +691,15 @@ with tab1:
     if flight_data['arrivals']:
         for flight in flight_data['arrivals'][:15]:
             has_track = "✅" if flight.get('has_track') else "⬜"
-            time_str = flight['last_seen'].strftime('%d/%m %H:%M') if flight.get('last_seen') else 'N/A'
+            
+            # Gérer les différents formats de date
+            flight_time = flight.get('last_seen') or flight.get('first_seen')
+            time_str = flight_time.strftime('%d/%m %H:%M') if flight_time else 'N/A'
             
             # Score météo du jour
             weather_badge = ""
-            if flight.get('last_seen'):
-                day_str = flight['last_seen'].strftime("%Y-%m-%d")
+            if flight_time:
+                day_str = flight_time.strftime("%Y-%m-%d")
                 score = weather_scores.get(day_str, 50)
                 if score >= 80:
                     weather_badge = '<span class="weather-badge weather-good">Météo OK</span>'
@@ -683,6 +707,13 @@ with tab1:
                     weather_badge = '<span class="weather-badge weather-moderate">Météo modérée</span>'
                 else:
                     weather_badge = '<span class="weather-badge weather-bad">Météo difficile</span>'
+            
+            # Infos supplémentaires
+            airline = flight.get('airline', '')
+            aircraft = flight.get('aircraft_type', '')
+            extra_info = f"{airline}" if airline and airline != 'N/A' else ""
+            if aircraft and aircraft != 'N/A':
+                extra_info += f" • {aircraft}" if extra_info else aircraft
             
             st.markdown(f"""
             <div class="flight-card">
@@ -694,7 +725,7 @@ with tab1:
                     <div>{weather_badge}</div>
                 </div>
                 <div style="font-size: 0.8rem; color: #94A3B8; margin-top: 0.25rem;">
-                    {time_str} • ICAO24: {flight['icao24']}
+                    {time_str} {' • ' + extra_info if extra_info else ''}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -705,11 +736,13 @@ with tab2:
     if flight_data['departures']:
         for flight in flight_data['departures'][:15]:
             has_track = "✅" if flight.get('has_track') else "⬜"
-            time_str = flight['first_seen'].strftime('%d/%m %H:%M') if flight.get('first_seen') else 'N/A'
+            
+            flight_time = flight.get('first_seen') or flight.get('last_seen')
+            time_str = flight_time.strftime('%d/%m %H:%M') if flight_time else 'N/A'
             
             weather_badge = ""
-            if flight.get('first_seen'):
-                day_str = flight['first_seen'].strftime("%Y-%m-%d")
+            if flight_time:
+                day_str = flight_time.strftime("%Y-%m-%d")
                 score = weather_scores.get(day_str, 50)
                 if score >= 80:
                     weather_badge = '<span class="weather-badge weather-good">Météo OK</span>'
@@ -717,6 +750,12 @@ with tab2:
                     weather_badge = '<span class="weather-badge weather-moderate">Météo modérée</span>'
                 else:
                     weather_badge = '<span class="weather-badge weather-bad">Météo difficile</span>'
+            
+            airline = flight.get('airline', '')
+            aircraft = flight.get('aircraft_type', '')
+            extra_info = f"{airline}" if airline and airline != 'N/A' else ""
+            if aircraft and aircraft != 'N/A':
+                extra_info += f" • {aircraft}" if extra_info else aircraft
             
             st.markdown(f"""
             <div class="flight-card" style="border-left-color: #F97316;">
@@ -728,7 +767,7 @@ with tab2:
                     <div>{weather_badge}</div>
                 </div>
                 <div style="font-size: 0.8rem; color: #94A3B8; margin-top: 0.25rem;">
-                    {time_str} • ICAO24: {flight['icao24']}
+                    {time_str} {' • ' + extra_info if extra_info else ''}
                 </div>
             </div>
             """, unsafe_allow_html=True)

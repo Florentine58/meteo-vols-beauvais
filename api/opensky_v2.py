@@ -1,9 +1,12 @@
 """
 Module OpenSky Network V2 — Trajectoires historiques pour Beauvais
-Récupère les vraies trajectoires des vols pour analyse météo/aviation
+Approche HYBRIDE : AeroDataBox pour les vols + OpenSky pour les trajectoires
 
-Documentation : https://openskynetwork.github.io/opensky-api/rest.html
-Gratuit avec compte : ~400 requêtes/jour
+OpenSky a des limitations sur les petits aéroports comme Beauvais,
+donc on utilise AeroDataBox (qui fonctionne bien) pour la liste des vols,
+puis OpenSky pour récupérer les trajectoires réelles.
+
+Documentation OpenSky : https://openskynetwork.github.io/opensky-api/rest.html
 """
 
 import requests
@@ -18,6 +21,9 @@ load_dotenv()
 # Credentials OpenSky
 OPENSKY_CLIENT_ID = os.getenv("OPENSKY_CLIENT_ID")
 OPENSKY_CLIENT_SECRET = os.getenv("OPENSKY_CLIENT_SECRET")
+
+# Clé AeroDataBox
+AERODATABOX_API_KEY = os.getenv("AERODATABOX_API_KEY")
 
 # Coordonnées Beauvais
 BVA_LAT = 49.4544
@@ -35,6 +41,7 @@ BBOX = {
 # URLs API
 BASE_URL = "https://opensky-network.org/api"
 AUTH_URL = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token"
+AERODATABOX_URL = "https://aerodatabox.p.rapidapi.com"
 
 # Cache pour le token
 _token_cache = {
@@ -91,36 +98,71 @@ def get_headers():
 
 def test_connection():
     """
-    Teste la connexion à l'API OpenSky.
+    Teste la connexion aux APIs OpenSky et AeroDataBox.
     """
-    # Test sans auth
+    result = {
+        "status": "error",
+        "opensky_auth": False,
+        "opensky_no_auth": False,
+        "aerodatabox": False,
+        "token_valid": False,
+        "can_get_tracks": False,
+        "message": ""
+    }
+    
+    # Test OpenSky sans auth
     try:
         url = f"{BASE_URL}/states/all"
         params = {"lamin": 49, "lamax": 50, "lomin": 2, "lomax": 3}
         response = requests.get(url, params=params, timeout=10)
-        no_auth_ok = response.status_code == 200
+        result["opensky_no_auth"] = response.status_code == 200
     except:
-        no_auth_ok = False
+        pass
     
-    # Test avec auth
-    auth_ok = False
+    # Test OpenSky avec auth
     token = get_oauth_token()
+    result["token_valid"] = token is not None
+    
     if token:
         try:
             headers = {"Authorization": f"Bearer {token}"}
             response = requests.get(f"{BASE_URL}/states/all", params=params, headers=headers, timeout=10)
-            auth_ok = response.status_code == 200
+            result["opensky_auth"] = response.status_code == 200
+            result["can_get_tracks"] = result["opensky_auth"]
         except:
             pass
     
-    return {
-        "status": "success" if auth_ok else ("warning" if no_auth_ok else "error"),
-        "no_auth": no_auth_ok,
-        "with_auth": auth_ok,
-        "token_valid": token is not None,
-        "can_get_tracks": auth_ok,
-        "message": "✅ Connexion OpenSky OK avec authentification" if auth_ok else ("⚠️ Connexion OK sans auth (limité)" if no_auth_ok else "❌ Connexion échouée")
-    }
+    # Test AeroDataBox
+    if AERODATABOX_API_KEY:
+        try:
+            headers = {
+                "X-RapidAPI-Key": AERODATABOX_API_KEY,
+                "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"
+            }
+            url = f"{AERODATABOX_URL}/health/services/feeds/FlightSchedules"
+            response = requests.get(url, headers=headers, timeout=10)
+            result["aerodatabox"] = response.status_code == 200
+        except:
+            pass
+    
+    # Déterminer le statut global
+    if result["aerodatabox"] and result["opensky_auth"]:
+        result["status"] = "success"
+        result["message"] = "✅ Connexion OpenSky OK avec authentification — Trajectoires disponibles"
+    elif result["aerodatabox"] and result["opensky_no_auth"]:
+        result["status"] = "warning"
+        result["message"] = "⚠️ AeroDataBox OK, OpenSky limité (sans auth) — Trajectoires limitées"
+    elif result["aerodatabox"]:
+        result["status"] = "warning"
+        result["message"] = "⚠️ AeroDataBox OK, OpenSky indisponible — Trajectoires estimées uniquement"
+    elif result["opensky_auth"]:
+        result["status"] = "warning"
+        result["message"] = "⚠️ OpenSky OK mais AeroDataBox indisponible"
+    else:
+        result["status"] = "error"
+        result["message"] = "❌ Connexion échouée aux deux APIs"
+    
+    return result
 
 
 def get_current_flights_in_area():
@@ -299,6 +341,10 @@ def get_beauvais_flights_with_tracks(hours=24, max_tracks=20):
     """
     🎯 Fonction principale : Récupère les vols BVA avec leurs trajectoires réelles.
     
+    APPROCHE HYBRIDE :
+    1. AeroDataBox → Liste des vols (fonctionne bien pour Beauvais)
+    2. OpenSky → Trajectoires réelles (via icao24)
+    
     Args:
         hours (int): Heures d'historique (max 168 = 7 jours)
         max_tracks (int): Nombre max de trajectoires à récupérer (économie API)
@@ -314,32 +360,39 @@ def get_beauvais_flights_with_tracks(hours=24, max_tracks=20):
     """
     print(f"📡 Récupération des vols BVA des {hours} dernières heures...")
     
-    # Récupérer arrivées et départs
-    arrivals = get_flights_by_airport(AIRPORT_ICAO, hours, arrival=True)
-    time.sleep(0.5)  # Respecter le rate limit
-    departures = get_flights_by_airport(AIRPORT_ICAO, hours, arrival=False)
+    # =========================================================================
+    # ÉTAPE 1 : Récupérer les vols via AeroDataBox
+    # =========================================================================
+    arrivals = get_aerodatabox_flights(AIRPORT_ICAO, hours, arrival=True)
+    time.sleep(0.3)
+    departures = get_aerodatabox_flights(AIRPORT_ICAO, hours, arrival=False)
     
     print(f"   Arrivées: {len(arrivals)} | Départs: {len(departures)}")
     
-    # Récupérer les trajectoires pour les vols les plus récents
+    # =========================================================================
+    # ÉTAPE 2 : Récupérer les trajectoires via OpenSky (pour les vols récents)
+    # =========================================================================
     all_flights = arrivals + departures
-    all_flights.sort(key=lambda x: x.get('last_seen_ts', 0) or 0, reverse=True)
+    
+    # Trier par date (plus récents d'abord)
+    all_flights.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
     
     tracks_retrieved = 0
     
     for flight in all_flights[:max_tracks]:
         if tracks_retrieved >= max_tracks:
             break
-            
+        
         icao24 = flight.get('icao24')
         if not icao24 or icao24 == 'N/A':
             continue
         
-        # Utiliser le timestamp du vol pour récupérer sa trajectoire
-        ts = flight.get('last_seen_ts', 0)
+        # Timestamp du vol pour récupérer la trajectoire
+        ts = flight.get('timestamp', 0)
         
+        print(f"   🔍 Recherche trajectoire {flight['callsign']} (icao24: {icao24})...")
         track = get_flight_track(icao24, timestamp=ts)
-        time.sleep(0.3)  # Rate limit
+        time.sleep(0.4)  # Rate limit OpenSky
         
         if track and track.get('waypoints'):
             flight['track'] = track
@@ -365,6 +418,116 @@ def get_beauvais_flights_with_tracks(hours=24, max_tracks=20):
             "hours": hours
         }
     }
+
+
+def get_aerodatabox_flights(airport_icao="LFOB", hours=24, arrival=True):
+    """
+    Récupère les vols via AeroDataBox (fonctionne bien pour Beauvais).
+    
+    Args:
+        airport_icao (str): Code ICAO
+        hours (int): Heures d'historique
+        arrival (bool): True = arrivées, False = départs
+    
+    Returns:
+        list: Liste des vols formatés
+    """
+    if not AERODATABOX_API_KEY:
+        print("⚠️  Clé AeroDataBox non configurée")
+        return []
+    
+    headers = {
+        "X-RapidAPI-Key": AERODATABOX_API_KEY,
+        "X-RapidAPI-Host": "aerodatabox.p.rapidapi.com"
+    }
+    
+    # Calculer la période
+    now = datetime.now(timezone.utc)
+    from_time = (now - timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M")
+    to_time = now.strftime("%Y-%m-%dT%H:%M")
+    
+    url = f"{AERODATABOX_URL}/flights/airports/icao/{airport_icao}/{from_time}/{to_time}"
+    
+    direction = "Arrival" if arrival else "Departure"
+    params = {
+        "direction": direction,
+        "withLeg": "true",
+        "withCancelled": "true",
+        "withCodeshared": "false"
+    }
+    
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            # Extraire arrivées ou départs
+            if arrival:
+                flights_raw = data.get("arrivals", [])
+            else:
+                flights_raw = data.get("departures", [])
+            
+            formatted = []
+            for flight in flights_raw:
+                # Extraire l'icao24 (adresse Mode-S de l'avion)
+                aircraft = flight.get("aircraft", {})
+                icao24 = aircraft.get("modeS", "").lower() if aircraft.get("modeS") else None
+                
+                # Extraire les infos du vol
+                if arrival:
+                    scheduled = flight.get("arrival", {}).get("scheduledTimeUtc")
+                    origin = flight.get("departure", {}).get("airport", {}).get("icao", "N/A")
+                    destination = airport_icao
+                else:
+                    scheduled = flight.get("departure", {}).get("scheduledTimeUtc")
+                    origin = airport_icao
+                    destination = flight.get("arrival", {}).get("airport", {}).get("icao", "N/A")
+                
+                # Parser le timestamp
+                timestamp = 0
+                first_seen = None
+                last_seen = None
+                if scheduled:
+                    try:
+                        dt = datetime.fromisoformat(scheduled.replace("Z", "+00:00"))
+                        timestamp = int(dt.timestamp())
+                        if arrival:
+                            last_seen = dt
+                        else:
+                            first_seen = dt
+                    except:
+                        pass
+                
+                formatted.append({
+                    "icao24": icao24,
+                    "callsign": flight.get("number", "N/A"),
+                    "airline": flight.get("airline", {}).get("name", "N/A"),
+                    "origin": origin,
+                    "destination": destination,
+                    "aircraft_type": aircraft.get("model", "N/A"),
+                    "registration": aircraft.get("reg", "N/A"),
+                    "first_seen": first_seen,
+                    "last_seen": last_seen,
+                    "timestamp": timestamp,
+                    "is_arrival": arrival,
+                    "status": flight.get("status", "Unknown"),
+                    "has_track": False,
+                    "track": None
+                })
+            
+            return formatted
+            
+        elif response.status_code == 429:
+            print("⚠️  AeroDataBox: Trop de requêtes (429)")
+            return []
+        else:
+            print(f"⚠️  AeroDataBox: Erreur {response.status_code}")
+            return []
+            
+    except requests.RequestException as e:
+        print(f"❌ Erreur AeroDataBox: {e}")
+        return []
 
 
 def get_historical_flights_by_day(days=7):
@@ -415,41 +578,130 @@ def get_historical_flights_by_day(days=7):
 
 
 # Coordonnées aéroports majeurs (pour tracer les lignes quand pas de trajectoire)
+# Inclut les destinations typiques de Beauvais (Ryanair, Wizz Air)
 AIRPORT_COORDS = {
+    # France
     "LFOB": (49.4544, 2.1106),   # Beauvais
     "LFPG": (49.0097, 2.5479),   # Paris CDG
     "LFPO": (48.7262, 2.3597),   # Paris Orly
-    "EGLL": (51.4700, -0.4543),  # Londres Heathrow
-    "EGSS": (51.8850, 0.2350),   # Londres Stansted
-    "LEMD": (40.4719, -3.5626),  # Madrid
-    "LIRF": (41.8003, 12.2389),  # Rome Fiumicino
-    "LEBL": (41.2971, 2.0785),   # Barcelone
-    "LPPT": (38.7813, -9.1359),  # Lisbonne
-    "EIDW": (53.4213, -6.2701),  # Dublin
-    "EHAM": (52.3086, 4.7639),   # Amsterdam
-    "EDDF": (50.0379, 8.5622),   # Francfort
-    "EDDM": (48.3538, 11.7861),  # Munich
-    "LSZH": (47.4647, 8.5492),   # Zurich
-    "LIMC": (45.6301, 8.7231),   # Milan Malpensa
-    "LOWW": (48.1103, 16.5697),  # Vienne
-    "EPWA": (52.1657, 20.9671),  # Varsovie
-    "LKPR": (50.1008, 14.2600),  # Prague
-    "LHBP": (47.4369, 19.2556),  # Budapest
-    "LGAV": (37.9364, 23.9445),  # Athènes
-    "LEPA": (39.5517, 2.7388),   # Palma
-    "GCTS": (28.0445, -16.5725), # Tenerife Sud
-    "LPFR": (37.0144, -7.9659),  # Faro
-    "LEAL": (38.2822, -0.5582),  # Alicante
-    "LEMG": (36.6749, -4.4991),  # Malaga
     "LFML": (43.4393, 5.2214),   # Marseille
     "LFMN": (43.6584, 7.2159),   # Nice
     "LFLL": (45.7256, 5.0811),   # Lyon
-    "LSGG": (46.2381, 6.1089),   # Genève
-    "EBBR": (50.9014, 4.4844),   # Bruxelles
+    "LFBD": (44.8283, -0.7156),  # Bordeaux
+    "LFRS": (47.1532, -1.6107),  # Nantes
+    "LFBO": (43.6291, 1.3638),   # Toulouse
+    
+    # Royaume-Uni & Irlande
+    "EGLL": (51.4700, -0.4543),  # Londres Heathrow
+    "EGSS": (51.8850, 0.2350),   # Londres Stansted
     "EGKK": (51.1537, -0.1821),  # Londres Gatwick
+    "EGGW": (51.8747, -0.3683),  # Londres Luton
+    "EGCC": (53.3537, -2.2750),  # Manchester
+    "EGPH": (55.9500, -3.3725),  # Édimbourg
+    "EIDW": (53.4213, -6.2701),  # Dublin
+    "EICK": (51.8413, -8.4911),  # Cork
+    "EINN": (52.7019, -8.9248),  # Shannon
+    
+    # Espagne
+    "LEMD": (40.4719, -3.5626),  # Madrid
+    "LEBL": (41.2971, 2.0785),   # Barcelone
+    "LEPA": (39.5517, 2.7388),   # Palma de Majorque
+    "GCTS": (28.0445, -16.5725), # Tenerife Sud
+    "LEAL": (38.2822, -0.5582),  # Alicante
+    "LEMG": (36.6749, -4.4991),  # Malaga
+    "LEVC": (39.4893, -0.4816),  # Valence
+    "LEZL": (37.4180, -5.8931),  # Séville
+    "LEGE": (41.9009, 2.7606),   # Gérone
+    "LERS": (41.1474, 1.1672),   # Reus
+    "LEBB": (43.3011, -2.9106),  # Bilbao
+    "LEST": (42.8963, -8.4151),  # Saint-Jacques
+    
+    # Portugal
+    "LPPT": (38.7813, -9.1359),  # Lisbonne
+    "LPFR": (37.0144, -7.9659),  # Faro
+    "LPPR": (41.2481, -8.6814),  # Porto
+    
+    # Italie
+    "LIRF": (41.8003, 12.2389),  # Rome Fiumicino
     "LIMC": (45.6306, 8.7231),   # Milan Malpensa
-    "LIPZ": (45.5053, 12.3519),  # Venise
+    "LIME": (45.6739, 9.7042),   # Bergame (Orio al Serio) - RYANAIR
+    "LIPZ": (45.5053, 12.3519),  # Venise Marco Polo
+    "LIPH": (45.6484, 12.1944),  # Trévise - RYANAIR
+    "LIPE": (44.5354, 11.2887),  # Bologne
+    "LIEE": (39.2515, 9.0543),   # Cagliari
+    "LICJ": (38.1760, 13.0910),  # Palerme
+    "LICC": (37.4668, 15.0664),  # Catane
+    "LIRN": (40.8860, 14.2908),  # Naples
+    "LIPX": (45.3957, 10.8877),  # Vérone
+    "LIBD": (41.1389, 16.7606),  # Bari
+    "LIBR": (40.6576, 17.9472),  # Brindisi
+    
+    # Allemagne
+    "EDDF": (50.0379, 8.5622),   # Francfort
+    "EDDM": (48.3538, 11.7861),  # Munich
+    "EDDB": (52.3622, 13.5009),  # Berlin Brandenburg
+    "EDDK": (50.8659, 7.1427),   # Cologne
+    "EDDW": (53.0475, 8.7867),   # Brême
+    "EDLW": (51.5183, 7.6122),   # Dortmund
+    "EDDN": (49.4987, 11.0669),  # Nuremberg
+    
+    # Europe Centrale & Est
+    "LSZH": (47.4647, 8.5492),   # Zurich
+    "LSGG": (46.2381, 6.1089),   # Genève
+    "LOWW": (48.1103, 16.5697),  # Vienne
+    "EPWA": (52.1657, 20.9671),  # Varsovie Chopin
+    "EPMO": (52.4511, 20.6517),  # Varsovie Modlin - RYANAIR
+    "EPKK": (50.0777, 19.7848),  # Cracovie
+    "EPGD": (54.3776, 18.4662),  # Gdansk
+    "EPWR": (51.1027, 16.8858),  # Wroclaw
+    "EPPO": (52.4211, 16.8263),  # Poznan
+    "LKPR": (50.1008, 14.2600),  # Prague
+    "LHBP": (47.4369, 19.2556),  # Budapest
+    "LROP": (44.5711, 26.0850),  # Bucarest Otopeni
+    "LBSF": (42.6952, 23.4114),  # Sofia
+    
+    # Pays-Bas, Belgique, Luxembourg
+    "EHAM": (52.3086, 4.7639),   # Amsterdam
+    "EHEH": (51.4501, 5.3743),   # Eindhoven
+    "EBBR": (50.9014, 4.4844),   # Bruxelles
+    "EBCI": (50.4592, 4.4538),   # Charleroi - RYANAIR
+    
+    # Scandinavie
+    "EKCH": (55.6180, 12.6560),  # Copenhague
+    "ESSA": (59.6519, 17.9186),  # Stockholm Arlanda
+    "ESGG": (57.6628, 12.2798),  # Göteborg
+    "ENGM": (60.1939, 11.1004),  # Oslo
+    "ENZV": (58.8767, 5.6378),   # Stavanger
+    "EFHK": (60.3172, 24.9633),  # Helsinki
+    "EVRA": (56.9236, 23.9711),  # Riga
+    "EYVI": (54.6341, 25.2858),  # Vilnius
+    "EETN": (59.4133, 24.8328),  # Tallinn
+    
+    # Grèce & Chypre
+    "LGAV": (37.9364, 23.9445),  # Athènes
+    "LGTS": (40.5197, 22.9709),  # Thessalonique
+    "LGKR": (39.6019, 19.9117),  # Corfou
+    "LGIR": (35.3397, 25.1803),  # Héraklion (Crète)
+    "LGSR": (36.3992, 25.4793),  # Santorin
+    "LCLK": (34.8751, 33.6249),  # Larnaca (Chypre)
+    "LCPH": (34.7180, 32.4857),  # Paphos
+    
+    # Turquie
     "LTFM": (41.2753, 28.7519),  # Istanbul
+    "LTAI": (36.8987, 30.8005),  # Antalya
+    
+    # Maroc
+    "GMMN": (33.3675, -7.5900),  # Casablanca
+    "GMME": (34.0533, -6.7514),  # Rabat
+    "GMMX": (31.6069, -8.0363),  # Marrakech
+    "GMFF": (33.9273, -4.9780),  # Fès
+    "GMTT": (35.7269, -5.9169),  # Tanger
+    
+    # Autres
+    "GCFV": (28.4527, -13.8638), # Fuerteventura
+    "GCLP": (27.9319, -15.3866), # Gran Canaria
+    "GCLA": (28.6265, -17.7556), # La Palma
+    "GCRR": (28.9455, -13.6052), # Lanzarote
 }
 
 
