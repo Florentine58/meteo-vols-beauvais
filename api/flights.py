@@ -23,16 +23,19 @@ AIRPORT_IATA = "BVA"
 SEARCH_RADIUS = 50000  # 50 km
 
 
-def get_flights_in_area():
+def get_flights_in_area(radius=SEARCH_RADIUS):
     """
     Récupère les vols dans un rayon autour de l'aéroport de Beauvais.
+    
+    Args:
+        radius (int): Rayon de recherche en mètres (défaut: 50000)
     
     Returns:
         list: Liste des vols avec leurs informations
     """
     try:
         # Définir la zone de recherche autour de Beauvais
-        bounds = fr_api.get_bounds_by_point(BVA_LAT, BVA_LON, SEARCH_RADIUS)
+        bounds = fr_api.get_bounds_by_point(BVA_LAT, BVA_LON, radius)
         
         # Récupérer les vols dans cette zone
         flights = fr_api.get_flights(bounds=bounds)
@@ -213,7 +216,7 @@ if __name__ == "__main__":
     print(f"Vols trouvés : {len(flights)}")
     
     if flights:
-        for flight in flights[:5]:  # Afficher les 5 premiers
+        for flight in flights[:5]:
             print(f"  - {flight['callsign']} | {flight['origin']} → {flight['destination']} | Alt: {flight['altitude']}ft")
     else:
         print("  Aucun vol détecté dans la zone actuellement.")

@@ -6,6 +6,7 @@ Inclut :
 - Prévisions 7 jours
 - Historique 30 jours
 - Historique LONG TERME (depuis 1940 !) via OpenMeteo Archive
+- Qualité de l'air (intégré)
 
 Documentation API : https://open-meteo.com/
 """
@@ -21,6 +22,7 @@ BEAUVAIS_LON = 2.0807
 # URLs des APIs OpenMeteo
 BASE_URL = "https://api.open-meteo.com/v1/forecast"
 HISTORICAL_URL = "https://archive-api.open-meteo.com/v1/archive"
+AIR_QUALITY_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 
 
 def get_current_weather():
@@ -159,7 +161,7 @@ def get_historical_weather(days=30):
 
 def get_long_term_historical_weather(start_year, end_year=None):
     """
-    🆕 Récupère l'historique météo sur PLUSIEURS ANNÉES.
+    Récupère l'historique météo sur PLUSIEURS ANNÉES.
     OpenMeteo Archive fournit des données depuis 1940 !
     
     Args:
@@ -242,45 +244,28 @@ def get_long_term_historical_weather(start_year, end_year=None):
             
             # Détection brouillard et orages via weather_code
             if code is not None:
-                # Brouillard : codes 45, 48
                 if code in [45, 48]:
                     yearly_stats[year]["fog_days"] += 1
-                # Orages : codes 95, 96, 99 + pluies fortes 65, 82
                 if code in [65, 82, 95, 96, 99]:
                     yearly_stats[year]["storm_days"] += 1
             
-            # Récupérer les températures min/max pour estimer le brouillard
-            temp_max = daily["temperature_2m_max"][i] if daily.get("temperature_2m_max") else None
-            temp_min = daily["temperature_2m_min"][i] if daily.get("temperature_2m_min") else None
-            
-            # ESTIMATION ORAGES si pas de weather_code fiable
-            # Conditions orageuses : rafales > 50 km/h ET précipitations > 10mm
+            # Estimation orages si pas de weather_code fiable
             if gusts is not None and precip is not None:
                 if gusts > 50 and precip > 10:
-                    # Éviter double comptage
                     if code is None or code not in [65, 82, 95, 96, 99]:
                         yearly_stats[year]["storm_days"] += 1
             
-            # ESTIMATION BROUILLARD (si pas détecté via weather_code)
-            # Beauvais a environ 40-50 jours de brouillard par an
-            # Conditions propices : faible vent + faible amplitude thermique + saison froide
+            # Estimation brouillard
+            temp_max = daily["temperature_2m_max"][i] if daily.get("temperature_2m_max") else None
+            temp_min = daily["temperature_2m_min"][i] if daily.get("temperature_2m_min") else None
             month = int(date_str[5:7])
             
-            # Si pas déjà compté via weather_code
             if code is None or code not in [45, 48]:
-                # Conditions de brouillard :
-                # 1. Vent faible (< 15 km/h)
-                # 2. Faible amplitude thermique (< 6°C) = ciel couvert/brumeux
-                # 3. Mois propices (sept à mars)
-                # 4. Pas trop de pluie (< 3mm)
                 if temp_max is not None and temp_min is not None and wind is not None:
                     amplitude = temp_max - temp_min
                     is_fog_season = month in [9, 10, 11, 12, 1, 2, 3]
                     
                     if wind < 15 and amplitude < 6 and is_fog_season:
-                        # Probabilité de brouillard basée sur les conditions
-                        # ~15% des jours avec ces conditions = brouillard
-                        # On utilise une seed basée sur la date pour être reproductible
                         random.seed(hash(date_str))
                         if random.random() < 0.12:
                             yearly_stats[year]["fog_days"] += 1
@@ -291,7 +276,6 @@ def get_long_term_historical_weather(start_year, end_year=None):
             stats["avg_wind"] = sum(stats["winds"]) / len(stats["winds"]) if stats["winds"] else 0
             stats["max_wind"] = max(stats["winds"]) if stats["winds"] else 0
             stats["total_precip"] = sum(stats["precips"]) if stats["precips"] else 0
-            # Nettoyer les listes pour économiser la mémoire
             del stats["temps"]
             del stats["winds"]
             del stats["precips"]
@@ -310,44 +294,6 @@ def get_long_term_historical_weather(start_year, end_year=None):
         
     except requests.RequestException as e:
         print(f"Erreur historique long terme: {e}")
-        return None
-
-
-def get_weather_for_period(start_date, end_date):
-    """
-    Récupère la météo pour une période spécifique.
-    
-    Args:
-        start_date (str): Date de début "YYYY-MM-DD"
-        end_date (str): Date de fin "YYYY-MM-DD"
-    
-    Returns:
-        dict: Données météo pour la période
-    """
-    params = {
-        "latitude": BEAUVAIS_LAT,
-        "longitude": BEAUVAIS_LON,
-        "start_date": start_date,
-        "end_date": end_date,
-        "daily": [
-            "temperature_2m_max",
-            "temperature_2m_min",
-            "temperature_2m_mean",
-            "precipitation_sum",
-            "wind_speed_10m_max",
-            "wind_gusts_10m_max",
-            "weather_code"
-        ],
-        "timezone": "Europe/Paris"
-    }
-    
-    try:
-        response = requests.get(HISTORICAL_URL, params=params, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-        return data.get("daily")
-    except requests.RequestException as e:
-        print(f"Erreur météo période: {e}")
         return None
 
 
@@ -447,54 +393,6 @@ def get_aviation_conditions_forecast():
     return aviation_forecast
 
 
-def calculate_aviation_score(wind_max, wind_gusts, precipitation, weather_code):
-    """
-    Calcule le score aviation pour des conditions météo données.
-    
-    Args:
-        wind_max (float): Vent maximum en km/h
-        wind_gusts (float): Rafales en km/h
-        precipitation (float): Précipitations en mm
-        weather_code (int): Code météo WMO
-    
-    Returns:
-        int: Score de 0 (très mauvais) à 100 (parfait)
-    """
-    score = 100
-    
-    # Vent
-    if wind_max and wind_max > 50:
-        score -= 40
-    elif wind_max and wind_max > 35:
-        score -= 25
-    elif wind_max and wind_max > 25:
-        score -= 10
-    
-    # Rafales
-    if wind_gusts and wind_gusts > 60:
-        score -= 20
-    elif wind_gusts and wind_gusts > 45:
-        score -= 10
-    
-    # Précipitations
-    if precipitation and precipitation > 20:
-        score -= 25
-    elif precipitation and precipitation > 10:
-        score -= 15
-    elif precipitation and precipitation > 5:
-        score -= 5
-    
-    # Code météo
-    if weather_code in [45, 48]:  # Brouillard
-        score -= 30
-    elif weather_code in [95, 96, 99]:  # Orage
-        score -= 35
-    elif weather_code in [71, 73, 75, 77]:  # Neige
-        score -= 30
-    
-    return max(0, min(100, score))
-
-
 def get_weather_code_description(code):
     """
     Retourne l'icône et la description d'un code météo WMO.
@@ -531,24 +429,177 @@ def get_weather_code_description(code):
     return weather_codes.get(code, ("❓", "Inconnu"))
 
 
+# =============================================================================
+# QUALITÉ DE L'AIR (intégré)
+# =============================================================================
+
+def get_current_air_quality():
+    """
+    Récupère la qualité de l'air actuelle à Beauvais.
+    
+    Returns:
+        dict: Données de qualité de l'air ou None si erreur
+    """
+    params = {
+        "latitude": BEAUVAIS_LAT,
+        "longitude": BEAUVAIS_LON,
+        "current": [
+            "pm10",
+            "pm2_5",
+            "carbon_monoxide",
+            "nitrogen_dioxide",
+            "sulphur_dioxide",
+            "ozone",
+            "european_aqi",
+            "us_aqi"
+        ],
+        "timezone": "Europe/Paris"
+    }
+    
+    try:
+        response = requests.get(AIR_QUALITY_URL, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        current = data.get("current", {})
+        
+        # Ajouter des interprétations
+        aqi = current.get("european_aqi", 0)
+        if aqi <= 20:
+            aqi_level = "Excellent"
+            aqi_color = "#22C55E"
+        elif aqi <= 40:
+            aqi_level = "Bon"
+            aqi_color = "#86EFAC"
+        elif aqi <= 60:
+            aqi_level = "Modéré"
+            aqi_color = "#EAB308"
+        elif aqi <= 80:
+            aqi_level = "Médiocre"
+            aqi_color = "#F97316"
+        elif aqi <= 100:
+            aqi_level = "Mauvais"
+            aqi_color = "#EF4444"
+        else:
+            aqi_level = "Très mauvais"
+            aqi_color = "#7C2D12"
+        
+        current["aqi_level"] = aqi_level
+        current["aqi_color"] = aqi_color
+        
+        return current
+        
+    except requests.RequestException as e:
+        print(f"Erreur qualité de l'air: {e}")
+        return None
+
+
+def get_air_quality_forecast(days=3):
+    """
+    Récupère les prévisions de qualité de l'air.
+    
+    Args:
+        days (int): Nombre de jours de prévision (1-5)
+    
+    Returns:
+        dict: Données horaires ou None si erreur
+    """
+    params = {
+        "latitude": BEAUVAIS_LAT,
+        "longitude": BEAUVAIS_LON,
+        "hourly": [
+            "pm10",
+            "pm2_5",
+            "carbon_monoxide",
+            "nitrogen_dioxide",
+            "ozone",
+            "european_aqi"
+        ],
+        "forecast_days": days,
+        "timezone": "Europe/Paris"
+    }
+    
+    try:
+        response = requests.get(AIR_QUALITY_URL, params=params, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return data.get("hourly")
+        
+    except requests.RequestException as e:
+        print(f"Erreur prévisions qualité air: {e}")
+        return None
+
+
+def calculate_aviation_air_impact(flights_count, wind_speed):
+    """
+    Estime l'impact des activités aéroportuaires sur la qualité de l'air.
+    
+    Args:
+        flights_count (int): Nombre de vols dans la zone
+        wind_speed (float): Vitesse du vent en km/h
+    
+    Returns:
+        dict: Estimation de l'impact
+    """
+    # Facteurs d'émission simplifiés (kg par mouvement avion)
+    CO2_PER_LTO = 2.5  # tonnes CO2 par cycle LTO
+    NOX_PER_LTO = 8.5  # kg NOx par LTO
+    PM_PER_LTO = 0.3   # kg particules par LTO
+    
+    # Dispersion selon le vent
+    if wind_speed > 30:
+        dispersion_factor = 0.3
+    elif wind_speed > 20:
+        dispersion_factor = 0.5
+    elif wind_speed > 10:
+        dispersion_factor = 0.7
+    else:
+        dispersion_factor = 1.0
+    
+    # Calculs
+    co2_estimate = flights_count * CO2_PER_LTO
+    nox_estimate = flights_count * NOX_PER_LTO * dispersion_factor
+    pm_estimate = flights_count * PM_PER_LTO * dispersion_factor
+    
+    # Score d'impact
+    base_impact = min(100, flights_count * 3)
+    adjusted_impact = base_impact * dispersion_factor
+    
+    # Niveau d'impact
+    if adjusted_impact <= 20:
+        impact_level = "Faible"
+        impact_color = "#22C55E"
+    elif adjusted_impact <= 50:
+        impact_level = "Modéré"
+        impact_color = "#EAB308"
+    else:
+        impact_level = "Élevé"
+        impact_color = "#EF4444"
+    
+    return {
+        "co2_tonnes": round(co2_estimate, 2),
+        "nox_kg": round(nox_estimate, 2),
+        "pm_kg": round(pm_estimate, 2),
+        "impact_score": round(adjusted_impact),
+        "impact_level": impact_level,
+        "impact_color": impact_color,
+        "dispersion": "Bonne" if dispersion_factor < 0.6 else "Moyenne" if dispersion_factor < 0.9 else "Faible",
+        "flights_count": flights_count,
+        "wind_speed": wind_speed
+    }
+
+
 # Test du module
 if __name__ == "__main__":
     print("=== Test du module météo ===\n")
     
-    # Météo actuelle
-    print("1. Météo actuelle à Beauvais:")
     weather = get_current_weather()
     if weather:
-        print(f"   Température: {weather['temperature_2m']}°C")
-        print(f"   Vent: {weather['wind_speed_10m']} km/h")
-        print(f"   Humidité: {weather['relative_humidity_2m']}%")
+        print(f"Température: {weather['temperature_2m']}°C")
+        print(f"Vent: {weather['wind_speed_10m']} km/h")
     
     print()
     
-    # Test historique long terme
-    print("2. Test historique long terme (2020-2024):")
-    long_data = get_long_term_historical_weather(2020, 2024)
-    if long_data:
-        print(f"   Période: {long_data['period']['years']} années")
-        for year, stats in sorted(long_data['yearly_stats'].items()):
-            print(f"   {year}: Temp moy={stats['avg_temp']:.1f}°C, Jours vent fort={stats['extreme_wind_days']}")
+    air = get_current_air_quality()
+    if air:
+        print(f"AQI: {air.get('european_aqi')} - {air.get('aqi_level')}")
+        print(f"PM2.5: {air.get('pm2_5')} µg/m³")

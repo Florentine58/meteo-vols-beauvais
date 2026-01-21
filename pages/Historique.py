@@ -1,15 +1,22 @@
 """
-Page Historique & Prévisions — Version Professionnelle
+Page Historique & Prévisions — Analyse corrélation météo/aviation
+Design professionnel unifié
 """
 
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 
 # Imports des modules API
-from api.weather import get_historical_weather, get_aviation_conditions_forecast, get_weather_code_description
+from api.weather import (
+    get_historical_weather, 
+    get_aviation_conditions_forecast, 
+    get_weather_code_description,
+    get_long_term_historical_weather
+)
 
 # Configuration de la page
 st.set_page_config(
@@ -19,7 +26,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CSS Professionnel (même style que app.py)
+# CSS Professionnel
 # =============================================================================
 st.markdown("""
 <style>
@@ -132,11 +139,6 @@ st.markdown("""
         border-top: 1px solid #2D3748;
         margin: 1.5rem 0;
     }
-    
-    [data-testid="stMetricLabel"] {
-        font-size: 0.7rem !important;
-        text-transform: uppercase;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -171,10 +173,9 @@ with tab1:
         forecast = get_aviation_conditions_forecast()
     
     if forecast:
-        # Résumé
+        # Résumé alertes
         alerts_red = len([d for d in forecast if d['level'] == 'red'])
         alerts_yellow = len([d for d in forecast if d['level'] == 'yellow'])
-        alerts_green = len([d for d in forecast if d['level'] == 'green'])
         
         if alerts_red > 0:
             st.markdown(f'<div class="alert-box alert-danger">{alerts_red} jour(s) avec conditions difficiles prévus cette semaine</div>', unsafe_allow_html=True)
@@ -193,15 +194,12 @@ with tab1:
                 icon, desc = get_weather_code_description(day['weather_code'])
                 
                 if day['score'] >= 80:
-                    indicator = "●"
                     ind_color = "#22C55E"
                     bg_border = "border-top: 3px solid #22C55E;"
                 elif day['score'] >= 50:
-                    indicator = "●"
                     ind_color = "#EAB308"
                     bg_border = "border-top: 3px solid #EAB308;"
                 else:
-                    indicator = "●"
                     ind_color = "#EF4444"
                     bg_border = "border-top: 3px solid #EF4444;"
                 
@@ -217,7 +215,7 @@ with tab1:
                     </div>
                     <div style="font-size: 0.8rem; color: #64748B;">Vent: {day['wind_max']:.0f} km/h</div>
                     <div style="margin-top: 0.5rem; font-weight: 600; color: {ind_color};">
-                        {indicator} {day['score']}/100
+                        ● {day['score']}/100
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -262,8 +260,7 @@ with tab1:
                 st.markdown(f"**{day['date_formatted']}** — Score: {day['score']}/100")
                 if day['alerts']:
                     for alert in day['alerts']:
-                        alert_clean = alert.replace("🌪️", "•").replace("💨", "•").replace("⚠️", "•").replace("🌧️", "•").replace("🌫️", "•").replace("⛈️", "•").replace("🌨️", "•")
-                        st.caption(f"  {alert_clean}")
+                        st.caption(f"  • {alert}")
                 else:
                     st.caption("  Aucune alerte")
                 st.markdown("")
@@ -509,6 +506,10 @@ with tab3:
                               yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B'))
             st.plotly_chart(fig2, use_container_width=True)
         
+        # Coefficient de corrélation
+        corr_vent = np.corrcoef(df['Vent Max'].fillna(0), df['Score'])[0, 1]
+        corr_precip = np.corrcoef(df['Précip'].fillna(0), df['Score'])[0, 1]
+        
         # Conclusion
         st.markdown("### Conclusions")
         
@@ -522,7 +523,11 @@ with tab3:
         - **{windy_days} jours** avec vent supérieur à 30 km/h
         - Score moyen de la période : **{avg:.0f}/100**
         
-        Les données montrent une corrélation claire entre les conditions météo défavorables (vent fort, précipitations) et la baisse du score aviation, suggérant un impact potentiel sur les opérations.
+        **Corrélations mesurées :**
+        - Vent ↔ Score : **{corr_vent:.2f}** (corrélation négative attendue)
+        - Précipitations ↔ Score : **{corr_precip:.2f}**
+        
+        Les données confirment une corrélation claire entre les conditions météo défavorables et la baisse du score aviation.
         """)
 
 # Footer

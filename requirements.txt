@@ -1,24 +1,27 @@
 # Interface web
-streamlit==1.45.0
+streamlit>=1.45.0
 
 # Requêtes HTTP pour les APIs
-requests==2.32.3
+requests>=2.32.0
 
 # Cartes interactives
-folium==0.19.5
-streamlit-folium==0.24.0
+folium>=0.19.0
+streamlit-folium>=0.24.0
 
 # Graphiques interactifs
-plotly==6.0.1
+plotly>=6.0.0
 
 # Manipulation de données
-pandas==2.2.3
+pandas>=2.2.0
 
 # Dates et heures
-python-dateutil==2.9.0
+python-dateutil>=2.9.0
 
 # API FlightRadar24 (usage éducatif)
-FlightRadarAPI==1.4.0
+FlightRadarAPI>=1.4.0
 
-# Variables d'environnement (pour les credentials OpenSky)
-python-dotenv==1.0.1
+# Variables d'environnement
+python-dotenv>=1.0.0
+
+# Client OpenSky officiel (optionnel, pour trajectoires avancées)
+# opensky-api  # Décommenter si besoin

@@ -1,6 +1,7 @@
 """
-Météo & Vols Beauvais — Dashboard Principal
-Version professionnelle avec design aviation
+BVA Monitor — Dashboard Principal
+Surveillance météo et trafic aérien Paris-Beauvais
+Design professionnel aviation
 """
 
 import streamlit as st
@@ -10,6 +11,7 @@ from datetime import datetime
 # Imports des modules API
 from api.weather import get_current_weather, get_hourly_forecast, get_aviation_conditions_forecast, get_weather_code_description
 from api.flights import get_flights_in_area, get_airport_info
+from api.air_quality import get_current_air_quality, calculate_aviation_air_impact
 
 # Configuration de la page
 st.set_page_config(
@@ -20,19 +22,16 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CSS Personnalisé - Design Aviation Professionnel
+# CSS Professionnel - Design Aviation
 # =============================================================================
 st.markdown("""
 <style>
-    /* Import police moderne */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
-    /* Style global */
     .stApp {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
     
-    /* En-tête principal */
     .main-header {
         background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
         padding: 1.5rem 2rem;
@@ -74,7 +73,6 @@ st.markdown("""
         50% { opacity: 0.7; }
     }
     
-    /* Section card */
     .section-card {
         background: #151B28;
         padding: 1.5rem;
@@ -83,7 +81,6 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* Score aviation */
     .score-display {
         text-align: center;
         padding: 1rem;
@@ -111,7 +108,6 @@ st.markdown("""
         color: #94A3B8;
     }
     
-    /* Status badges */
     .status-badge {
         display: inline-block;
         padding: 0.375rem 0.75rem;
@@ -138,7 +134,6 @@ st.markdown("""
         border: 1px solid rgba(239, 68, 68, 0.3);
     }
     
-    /* Flight list */
     .flight-row {
         display: flex;
         justify-content: space-between;
@@ -178,7 +173,6 @@ st.markdown("""
         color: #94A3B8;
     }
     
-    /* Forecast day card */
     .forecast-day {
         text-align: center;
         padding: 0.75rem 0.25rem;
@@ -217,7 +211,20 @@ st.markdown("""
         margin-top: 0.25rem;
     }
     
-    /* Footer */
+    .aqi-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .aqi-excellent { background: #22C55E; color: #000; }
+    .aqi-good { background: #84CC16; color: #000; }
+    .aqi-moderate { background: #EAB308; color: #000; }
+    .aqi-poor { background: #F97316; color: #000; }
+    .aqi-bad { background: #EF4444; color: #FFF; }
+    
     .footer {
         text-align: center;
         padding: 1.5rem;
@@ -227,11 +234,9 @@ st.markdown("""
         margin-top: 2rem;
     }
     
-    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Custom metrics */
     [data-testid="stMetricLabel"] {
         font-size: 0.7rem !important;
         text-transform: uppercase;
@@ -243,7 +248,6 @@ st.markdown("""
         font-weight: 600;
     }
     
-    /* Dividers */
     hr {
         border: none;
         border-top: 1px solid #2D3748;
@@ -285,6 +289,7 @@ with st.spinner("Chargement..."):
     forecast = get_aviation_conditions_forecast()
     hourly = get_hourly_forecast(days=1)
     airport = get_airport_info()
+    air_quality = get_current_air_quality()
 
 # =============================================================================
 # Section 1 : Métriques principales
@@ -306,10 +311,11 @@ with col2:
         st.metric("VENT", "N/A")
 
 with col3:
-    if weather:
-        st.metric("HUMIDITÉ", f"{weather['relative_humidity_2m']}%")
+    if air_quality:
+        aqi = air_quality.get('european_aqi', 'N/A')
+        st.metric("QUALITÉ AIR", f"AQI {aqi}")
     else:
-        st.metric("HUMIDITÉ", "N/A")
+        st.metric("QUALITÉ AIR", "N/A")
 
 with col4:
     st.metric("VOLS DÉTECTÉS", len(flights))
@@ -333,7 +339,6 @@ with col_left:
         today = forecast[0]
         score = today['score']
         
-        # Couleur selon le score
         if score >= 80:
             score_class = "score-green"
             status_class = "status-good"
@@ -365,10 +370,8 @@ with col_left:
             
             if today['alerts']:
                 st.markdown("**Facteurs identifiés**")
-                for alert in today['alerts']:
-                    # Nettoyer les emojis
-                    alert_clean = alert.replace("🌪️", "•").replace("💨", "•").replace("⚠️", "•").replace("🌧️", "•").replace("🌫️", "•").replace("⛈️", "•").replace("🌨️", "•")
-                    st.caption(alert_clean)
+                for alert in today['alerts'][:3]:
+                    st.caption(f"• {alert}")
             else:
                 st.caption("Aucun facteur de risque")
         
@@ -415,7 +418,7 @@ with col_right:
         in_flight = len([f for f in flights if not f.get('on_ground', False)])
         on_ground = len([f for f in flights if f.get('on_ground', False)])
         
-        # Graphique
+        # Graphique donut
         fig = go.Figure(data=[go.Pie(
             labels=['En vol', 'Au sol'],
             values=[in_flight, on_ground],
@@ -475,7 +478,99 @@ with col_right:
 st.divider()
 
 # =============================================================================
-# Section 3 : Graphiques météo
+# Section 3 : Qualité de l'air et impact environnemental
+# =============================================================================
+st.markdown("#### Qualité de l'air & Impact environnemental")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    if air_quality:
+        aqi = air_quality.get('european_aqi', 0)
+        level = air_quality.get('aqi_level', 'Inconnu')
+        
+        # Déterminer la classe CSS
+        if aqi <= 20:
+            aqi_class = "aqi-excellent"
+        elif aqi <= 40:
+            aqi_class = "aqi-good"
+        elif aqi <= 60:
+            aqi_class = "aqi-moderate"
+        elif aqi <= 80:
+            aqi_class = "aqi-poor"
+        else:
+            aqi_class = "aqi-bad"
+        
+        st.markdown(f"""
+        <div class="section-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <span style="font-weight: 600; color: #FAFAFA;">Qualité de l'air</span>
+                <span class="aqi-badge {aqi_class}">{level}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+                <div style="text-align: center;">
+                    <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{air_quality.get('pm2_5', 'N/A')}</div>
+                    <div style="font-size: 0.7rem; color: #64748B;">PM2.5 µg/m³</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{air_quality.get('pm10', 'N/A')}</div>
+                    <div style="font-size: 0.7rem; color: #64748B;">PM10 µg/m³</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{air_quality.get('nitrogen_dioxide', 'N/A')}</div>
+                    <div style="font-size: 0.7rem; color: #64748B;">NO₂ µg/m³</div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info("Données qualité de l'air non disponibles")
+
+with col2:
+    # Impact environnemental estimé
+    wind_speed = weather['wind_speed_10m'] if weather else 10
+    impact = calculate_aviation_air_impact(len(flights), wind_speed)
+    
+    if impact['score'] < 30:
+        impact_class = "aqi-good"
+        impact_level = "Faible"
+    elif impact['score'] < 60:
+        impact_class = "aqi-moderate"
+        impact_level = "Modéré"
+    else:
+        impact_class = "aqi-poor"
+        impact_level = "Élevé"
+    
+    st.markdown(f"""
+    <div class="section-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <span style="font-weight: 600; color: #FAFAFA;">Impact aéroport (estimé)</span>
+            <span class="aqi-badge {impact_class}">{impact_level}</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
+            <div style="text-align: center;">
+                <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{impact['co2_tonnes']:.1f}</div>
+                <div style="font-size: 0.7rem; color: #64748B;">Tonnes CO₂</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{impact['nox_kg']:.1f}</div>
+                <div style="font-size: 0.7rem; color: #64748B;">kg NOx</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{impact['pm_kg']:.1f}</div>
+                <div style="font-size: 0.7rem; color: #64748B;">kg PM</div>
+            </div>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.75rem; color: #64748B; text-align: center;">
+            Dispersion : {int(impact['dispersion_factor']*100)}% (vent {wind_speed:.0f} km/h)
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.divider()
+
+# =============================================================================
+# Section 4 : Graphiques météo
 # =============================================================================
 st.markdown("#### Évolution météo — 24 heures")
 
@@ -534,7 +629,7 @@ if hourly:
 st.divider()
 
 # =============================================================================
-# Section 4 : Infos aéroport
+# Section 5 : Infos aéroport
 # =============================================================================
 st.markdown("#### Informations aéroport")
 
@@ -559,7 +654,7 @@ with col3:
 # =============================================================================
 st.markdown("""
 <div class="footer">
-    Sources : OpenMeteo API • FlightRadar24<br>
+    Sources : OpenMeteo API • FlightRadar24 • OpenMeteo Air Quality<br>
     Projet Mineure Numérique B2 — 2025
 </div>
 """, unsafe_allow_html=True)
