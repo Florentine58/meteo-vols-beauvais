@@ -531,10 +531,10 @@ with col2:
     wind_speed = weather['wind_speed_10m'] if weather else 10
     impact = calculate_aviation_air_impact(len(flights), wind_speed)
     
-    if impact['score'] < 30:
+    if impact['impact_score'] < 30:
         impact_class = "aqi-good"
         impact_level = "Faible"
-    elif impact['score'] < 60:
+    elif impact['impact_score'] < 60:
         impact_class = "aqi-moderate"
         impact_level = "Modéré"
     else:
@@ -562,7 +562,7 @@ with col2:
             </div>
         </div>
         <div style="margin-top: 0.75rem; font-size: 0.75rem; color: #64748B; text-align: center;">
-            Dispersion : {int(impact['dispersion_factor']*100)}% (vent {wind_speed:.0f} km/h)
+            Dispersion : {impact['dispersion']} (vent {wind_speed:.0f} km/h)
         </div>
     </div>
     """, unsafe_allow_html=True)

@@ -16,7 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🌤️ Météo Beauvais")
+st.title("Météo Beauvais")
 st.markdown(f"*Données météorologiques en temps réel — Coordonnées : {BEAUVAIS_LAT}, {BEAUVAIS_LON}*")
 
 # Bouton de rafraîchissement
