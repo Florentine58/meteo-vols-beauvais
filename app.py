@@ -73,14 +73,6 @@ st.markdown("""
         50% { opacity: 0.7; }
     }
     
-    .section-card {
-        background: #151B28;
-        padding: 1.5rem;
-        border-radius: 12px;
-        border: 1px solid #2D3748;
-        margin-bottom: 1rem;
-    }
-    
     .score-display {
         text-align: center;
         padding: 1rem;
@@ -211,19 +203,40 @@ st.markdown("""
         margin-top: 0.25rem;
     }
     
-    .aqi-badge {
-        display: inline-block;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
+    .info-box {
+        background: #151B28;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #2D3748;
+        margin: 0.5rem 0;
     }
     
-    .aqi-excellent { background: #22C55E; color: #000; }
-    .aqi-good { background: #84CC16; color: #000; }
-    .aqi-moderate { background: #EAB308; color: #000; }
-    .aqi-poor { background: #F97316; color: #000; }
-    .aqi-bad { background: #EF4444; color: #FFF; }
+    .info-box-title {
+        font-weight: 600;
+        color: #00D4FF;
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .info-box-content {
+        color: #94A3B8;
+        font-size: 0.8rem;
+        line-height: 1.5;
+    }
+    
+    .aqi-scale {
+        display: flex;
+        gap: 0.25rem;
+        margin: 0.5rem 0;
+    }
+    
+    .aqi-level {
+        flex: 1;
+        padding: 0.25rem;
+        text-align: center;
+        font-size: 0.65rem;
+        border-radius: 3px;
+    }
     
     .footer {
         text-align: center;
@@ -332,7 +345,6 @@ st.divider()
 col_left, col_right = st.columns([3, 2])
 
 with col_left:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.markdown("#### Conditions aéronautiques")
     
     if forecast:
@@ -374,6 +386,28 @@ with col_left:
                     st.caption(f"• {alert}")
             else:
                 st.caption("Aucun facteur de risque")
+            
+            # Explication du score
+            with st.expander("ℹ️ Comment est calculé ce score ?"):
+                st.markdown("""
+                **Score Aviation (0-100)** évalue les conditions de vol :
+                
+                | Facteur | Impact sur le score |
+                |---------|---------------------|
+                | Vent > 50 km/h | -40 points |
+                | Vent 35-50 km/h | -25 points |
+                | Vent 25-35 km/h | -10 points |
+                | Rafales > 60 km/h | -20 points |
+                | Précipitations > 20mm | -25 points |
+                | Brouillard | -30 points |
+                | Orage | -35 points |
+                | Neige | -30 points |
+                
+                **Interprétation :**
+                - 🟢 80-100 : Conditions optimales
+                - 🟡 50-79 : Vigilance recommandée
+                - 🔴 0-49 : Conditions difficiles
+                """)
         
         # Prévisions 7 jours
         st.markdown("---")
@@ -407,11 +441,8 @@ with col_left:
                     <div class="forecast-score" style="color: {ind_color};">{indicator} {day['score']}</div>
                 </div>
                 """, unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 with col_right:
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.markdown("#### Trafic temps réel")
     
     if flights:
@@ -472,8 +503,6 @@ with col_right:
             """, unsafe_allow_html=True)
     else:
         st.info("Aucun vol détecté")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 st.divider()
 
@@ -485,87 +514,140 @@ st.markdown("#### Qualité de l'air & Impact environnemental")
 col1, col2 = st.columns(2)
 
 with col1:
+    st.markdown("##### 🌬️ Qualité de l'air")
+    
     if air_quality:
         aqi = air_quality.get('european_aqi', 0)
         level = air_quality.get('aqi_level', 'Inconnu')
         
-        # Déterminer la classe CSS
+        # Affichage AQI avec couleur
         if aqi <= 20:
-            aqi_class = "aqi-excellent"
+            aqi_color = "#22C55E"
         elif aqi <= 40:
-            aqi_class = "aqi-good"
+            aqi_color = "#84CC16"
         elif aqi <= 60:
-            aqi_class = "aqi-moderate"
+            aqi_color = "#EAB308"
         elif aqi <= 80:
-            aqi_class = "aqi-poor"
+            aqi_color = "#F97316"
         else:
-            aqi_class = "aqi-bad"
+            aqi_color = "#EF4444"
         
-        st.markdown(f"""
-        <div class="section-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <span style="font-weight: 600; color: #FAFAFA;">Qualité de l'air</span>
-                <span class="aqi-badge {aqi_class}">{level}</span>
+        col_aqi, col_details = st.columns([1, 2])
+        
+        with col_aqi:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1rem; background: #151B28; border-radius: 8px;">
+                <div style="font-size: 2.5rem; font-weight: 700; color: {aqi_color};">{aqi}</div>
+                <div style="font-size: 0.8rem; color: #94A3B8;">AQI Européen</div>
+                <div style="font-size: 0.9rem; color: {aqi_color}; font-weight: 600; margin-top: 0.25rem;">{level}</div>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
-                <div style="text-align: center;">
-                    <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{air_quality.get('pm2_5', 'N/A')}</div>
-                    <div style="font-size: 0.7rem; color: #64748B;">PM2.5 µg/m³</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{air_quality.get('pm10', 'N/A')}</div>
-                    <div style="font-size: 0.7rem; color: #64748B;">PM10 µg/m³</div>
-                </div>
-                <div style="text-align: center;">
-                    <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{air_quality.get('nitrogen_dioxide', 'N/A')}</div>
-                    <div style="font-size: 0.7rem; color: #64748B;">NO₂ µg/m³</div>
-                </div>
-            </div>
+            """, unsafe_allow_html=True)
+        
+        with col_details:
+            pm25 = air_quality.get('pm2_5', 0)
+            pm10 = air_quality.get('pm10', 0)
+            no2 = air_quality.get('nitrogen_dioxide', 0)
+            o3 = air_quality.get('ozone', 0)
+            
+            st.markdown(f"""
+            | Polluant | Valeur | Seuil OMS |
+            |----------|--------|-----------|
+            | PM2.5 | **{pm25:.1f}** µg/m³ | < 15 µg/m³ |
+            | PM10 | **{pm10:.1f}** µg/m³ | < 45 µg/m³ |
+            | NO₂ | **{no2:.1f}** µg/m³ | < 25 µg/m³ |
+            | O₃ | **{o3:.1f}** µg/m³ | < 100 µg/m³ |
+            """)
+        
+        # Échelle AQI
+        st.markdown("""
+        <div class="aqi-scale">
+            <div class="aqi-level" style="background: #22C55E; color: #000;">0-20<br>Excellent</div>
+            <div class="aqi-level" style="background: #84CC16; color: #000;">21-40<br>Bon</div>
+            <div class="aqi-level" style="background: #EAB308; color: #000;">41-60<br>Modéré</div>
+            <div class="aqi-level" style="background: #F97316; color: #000;">61-80<br>Médiocre</div>
+            <div class="aqi-level" style="background: #EF4444; color: #FFF;">81-100<br>Mauvais</div>
+            <div class="aqi-level" style="background: #7C2D12; color: #FFF;">>100<br>Très mauvais</div>
         </div>
         """, unsafe_allow_html=True)
+        
+        # Explication
+        with st.expander("ℹ️ Comment est mesuré l'AQI ?"):
+            st.markdown("""
+            **L'Indice de Qualité de l'Air Européen (AQI)** est calculé à partir de 5 polluants :
+            
+            - **PM2.5** : Particules fines < 2.5 µm (pénètrent dans les poumons)
+            - **PM10** : Particules < 10 µm (irritation respiratoire)
+            - **NO₂** : Dioxyde d'azote (émissions véhicules/avions)
+            - **O₃** : Ozone (formation par réaction chimique)
+            - **SO₂** : Dioxyde de soufre (combustion)
+            
+            L'AQI final = valeur du polluant le plus élevé.
+            
+            *Source : Agence Européenne pour l'Environnement (EEA)*
+            """)
     else:
         st.info("Données qualité de l'air non disponibles")
 
 with col2:
-    # Impact environnemental estimé
+    st.markdown("##### ✈️ Impact environnemental estimé")
+    
+    # Calcul de l'impact
     wind_speed = weather['wind_speed_10m'] if weather else 10
     impact = calculate_aviation_air_impact(len(flights), wind_speed)
     
-    if impact['impact_score'] < 30:
-        impact_class = "aqi-good"
-        impact_level = "Faible"
-    elif impact['impact_score'] < 60:
-        impact_class = "aqi-moderate"
-        impact_level = "Modéré"
-    else:
-        impact_class = "aqi-poor"
-        impact_level = "Élevé"
+    col_impact, col_emissions = st.columns([1, 2])
     
-    st.markdown(f"""
-    <div class="section-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <span style="font-weight: 600; color: #FAFAFA;">Impact aéroport (estimé)</span>
-            <span class="aqi-badge {impact_class}">{impact_level}</span>
+    with col_impact:
+        impact_score = impact['impact_score']
+        impact_color = impact['impact_color']
+        impact_level = impact['impact_level']
+        
+        st.markdown(f"""
+        <div style="text-align: center; padding: 1rem; background: #151B28; border-radius: 8px;">
+            <div style="font-size: 2.5rem; font-weight: 700; color: {impact_color};">{impact_score}</div>
+            <div style="font-size: 0.8rem; color: #94A3B8;">Score Impact</div>
+            <div style="font-size: 0.9rem; color: {impact_color}; font-weight: 600; margin-top: 0.25rem;">{impact_level}</div>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;">
-            <div style="text-align: center;">
-                <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{impact['co2_tonnes']:.1f}</div>
-                <div style="font-size: 0.7rem; color: #64748B;">Tonnes CO₂</div>
-            </div>
-            <div style="text-align: center;">
-                <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{impact['nox_kg']:.1f}</div>
-                <div style="font-size: 0.7rem; color: #64748B;">kg NOx</div>
-            </div>
-            <div style="text-align: center;">
-                <div style="font-size: 1.1rem; font-weight: 600; color: #FAFAFA;">{impact['pm_kg']:.1f}</div>
-                <div style="font-size: 0.7rem; color: #64748B;">kg PM</div>
-            </div>
-        </div>
-        <div style="margin-top: 0.75rem; font-size: 0.75rem; color: #64748B; text-align: center;">
-            Dispersion : {impact['dispersion']} (vent {wind_speed:.0f} km/h)
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    
+    with col_emissions:
+        st.markdown(f"""
+        | Émission | Estimation |
+        |----------|------------|
+        | CO₂ | **{impact['co2_tonnes']:.1f}** tonnes |
+        | NOx | **{impact['nox_kg']:.1f}** kg |
+        | Particules | **{impact['pm_kg']:.1f}** kg |
+        | Dispersion | **{impact['dispersion']}** |
+        """)
+        
+        st.caption(f"Basé sur {len(flights)} vols • Vent {wind_speed:.0f} km/h")
+    
+    # Explication
+    with st.expander("ℹ️ Comment est calculé l'impact ?"):
+        st.markdown(f"""
+        **Méthode de calcul (simplifiée) :**
+        
+        Chaque cycle LTO (Landing/Take-Off) d'un avion émet environ :
+        - **2.5 tonnes de CO₂**
+        - **8.5 kg de NOx** (oxydes d'azote)
+        - **0.3 kg de particules fines**
+        
+        *Sources : ICAO, EUROCONTROL*
+        
+        **Facteur de dispersion :**
+        
+        Le vent influence la concentration des polluants :
+        | Vent | Dispersion | Facteur |
+        |------|------------|---------|
+        | > 30 km/h | Très bonne | ×0.3 |
+        | 20-30 km/h | Bonne | ×0.5 |
+        | 10-20 km/h | Moyenne | ×0.7 |
+        | < 10 km/h | Faible | ×1.0 |
+        
+        **Actuellement :** Vent de **{wind_speed:.0f} km/h** → Dispersion **{impact['dispersion']}**
+        
+        ⚠️ *Ces valeurs sont des estimations à but éducatif.*
+        """)
 
 st.divider()
 
@@ -654,7 +736,10 @@ with col3:
 # =============================================================================
 st.markdown("""
 <div class="footer">
-    Sources : OpenMeteo API • FlightRadar24 • OpenMeteo Air Quality<br>
+    <b>Sources des données :</b><br>
+    Météo & Qualité de l'air : <a href="https://open-meteo.com" style="color: #00D4FF;">OpenMeteo API</a> (gratuit)<br>
+    Trafic aérien : <a href="https://www.flightradar24.com" style="color: #00D4FF;">FlightRadar24</a> (usage éducatif)<br>
+    <br>
     Projet Mineure Numérique B2 — 2025
 </div>
 """, unsafe_allow_html=True)
