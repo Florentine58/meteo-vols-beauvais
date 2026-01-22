@@ -572,6 +572,193 @@ with tab3:
             Les données confirment une corrélation claire entre les conditions météo défavorables et la baisse du score aviation.
             """)
 
+# =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture de la Page Historique (Historique.py)
+
+    Cette page combine **prévisions météo**, **analyse historique** et **corrélations**
+    pour évaluer l'impact des conditions météorologiques sur l'aviation.
+
+    #### 📦 Structure en Onglets (Tabs)
+
+    **Organisation (lignes 185-186)**
+    ```python
+    tab1, tab2, tab3 = st.tabs([
+        "Prévisions 7 jours",
+        "Historique Météo",
+        "Analyse Corrélation"
+    ])
+    ```
+    - **3 onglets distincts** pour différentes analyses
+    - Navigation fluide entre les vues
+
+    #### 📅 Tab 1 : Prévisions 7 Jours (lignes 190-306)
+
+    **Système d'Alertes**
+    ```python
+    alerts_red = len([d for d in forecast if d['level'] == 'red'])
+    alerts_yellow = len([d for d in forecast if d['level'] == 'yellow'])
+    ```
+    - **Comptage des alertes** : Nombre de jours difficiles à venir
+    - **Classification** : red (critique), yellow (vigilance), green (favorable)
+
+    **Graphique d'Évolution du Score**
+    ```python
+    # Zones colorées de fond
+    fig.add_hrect(y0=80, y1=100, fillcolor="#22C55E", opacity=0.1)
+    fig.add_hrect(y0=50, y1=80, fillcolor="#EAB308", opacity=0.1)
+    fig.add_hrect(y0=0, y1=50, fillcolor="#EF4444", opacity=0.1)
+
+    # Courbe du score
+    fig.add_trace(go.Scatter(
+        x=df_forecast['date_formatted'],
+        y=df_forecast['score'],
+        mode='lines+markers'
+    ))
+    ```
+    - **add_hrect()** : Ajoute des rectangles horizontaux (zones de référence)
+    - **Visualisation rapide** : Voir d'un coup d'œil les jours problématiques
+
+    #### 📈 Tab 2 : Historique Météo (lignes 310-418)
+
+    **Sélecteur de Période**
+    ```python
+    period = st.selectbox("Période", [7, 14, 30],
+                         format_func=lambda x: f"{x} derniers jours")
+    ```
+    - **format_func** : Fonction lambda pour formater l'affichage
+    - Permet à l'utilisateur de choisir la profondeur d'historique
+
+    **Statistiques Calculées**
+    ```python
+    col1.metric("Température moyenne", f"{df['Temp Moy'].mean():.1f}°C")
+    col2.metric("Précipitations totales", f"{df['Précip'].sum():.1f} mm")
+    col3.metric("Vent maximum", f"{df['Vent Max'].max():.0f} km/h")
+    col4.metric("Jours de pluie", len(df[df['Précip'] > 1]))
+    ```
+    - **Agrégations Pandas** : `.mean()`, `.sum()`, `.max()`
+    - **Filtrage** : `df[df['Précip'] > 1]` sélectionne les lignes avec pluie > 1mm
+
+    **Zone Remplie entre Courbes**
+    ```python
+    fig_temp.add_trace(go.Scatter(
+        x=df['Date'], y=df['Temp Min'],
+        fill='tonexty',  # Remplir jusqu'à la courbe précédente
+        fillcolor='rgba(59, 130, 246, 0.1)'
+    ))
+    ```
+    - **tonexty** : Remplit l'espace entre cette courbe et la précédente (Temp Max)
+    - Visualise l'amplitude thermique quotidienne
+
+    #### 🔬 Tab 3 : Analyse Corrélation (lignes 422-573)
+
+    **Algorithme de Calcul du Score**
+    ```python
+    def calc_score(row):
+        score = 100
+        if row['Vent Max'] > 50: score -= 40
+        elif row['Vent Max'] > 35: score -= 25
+        # ... etc
+
+        if row['Code'] in [45, 48]: score -= 30  # Brouillard
+        elif row['Code'] in [95, 96, 99]: score -= 35  # Orage
+        return max(0, min(100, score))
+
+    df['Score'] = df.apply(calc_score, axis=1)
+    ```
+    - **apply()** : Applique la fonction à chaque ligne du DataFrame
+    - **axis=1** : Traite par ligne (axis=0 serait par colonne)
+    - **max(0, min(100, score))** : Borne le score entre 0 et 100
+
+    **Graphique Double Axe**
+    ```python
+    fig.add_trace(go.Scatter(..., yaxis='y'))  # Axe gauche
+    fig.add_trace(go.Bar(..., yaxis='y2'))     # Axe droit
+
+    fig.update_layout(
+        yaxis=dict(title='Score', range=[0, 100]),
+        yaxis2=dict(title='Vent (km/h)', overlaying='y',
+                   side='right', range=[0, 80])
+    )
+    ```
+    - **Deux axes Y** : Permet de comparer score et vent sur le même graphique
+    - **overlaying='y'** : Le second axe se superpose au premier
+    - **side='right'** : Affichage à droite
+
+    **Scatter Plots avec Couleurs**
+    ```python
+    fig1 = px.scatter(
+        df, x='Vent Max', y='Score',
+        color='Impact',
+        color_discrete_map={
+            'Favorable': '#22C55E',
+            'Modéré': '#EAB308',
+            'Difficile': '#EF4444'
+        }
+    )
+    ```
+    - **color='Impact'** : Couleur basée sur une colonne
+    - **color_discrete_map** : Dictionnaire personnalisé de couleurs
+    - Permet de visualiser la répartition favorable/modéré/difficile
+
+    **Coefficient de Corrélation**
+    ```python
+    corr_vent = np.corrcoef(df['Vent Max'], df['Score'])[0, 1]
+    ```
+    - **np.corrcoef()** : Calcule la matrice de corrélation de Pearson
+    - **[0, 1]** : Extrait le coefficient de corrélation (entre -1 et 1)
+    - Valeur négative attendue : plus de vent → score plus bas
+
+    #### 🎯 Points Techniques
+
+    **Gestion des Valeurs Nulles**
+    ```python
+    df_clean = df.dropna(subset=['Vent Max', 'Score'])
+    if len(df_clean) > 5:
+        corr_vent = np.corrcoef(...)
+    ```
+    - **dropna()** : Supprime les lignes avec valeurs manquantes
+    - **subset** : Spécifie les colonnes à vérifier
+    - Vérifie qu'il y a assez de données pour la corrélation
+
+    **Catégorisation Automatique**
+    ```python
+    df['Impact'] = df['Score'].apply(
+        lambda x: 'Favorable' if x >= 80
+                 else ('Modéré' if x >= 50 else 'Difficile')
+    )
+    ```
+    - **lambda** : Fonction anonyme inline
+    - **Ternaire imbriqué** : if-else condensé
+    - Crée une nouvelle colonne catégorielle
+
+    #### 📊 Métriques Statistiques
+
+    **Calculs de Synthèse**
+    ```python
+    favorable = len(df[df['Score'] >= 80])
+    moderate = len(df[(df['Score'] >= 50) & (df['Score'] < 80)])
+    difficult = len(df[df['Score'] < 50])
+    ```
+    - **Opérateur &** : ET logique pour combiner conditions
+    - **len()** : Compte le nombre de lignes satisfaisant la condition
+
+    #### 🚀 Améliorations Possibles
+
+    1. **Tendances saisonnières** : Analyser les patterns par mois/saison
+    2. **Prédiction** : Modèle ML pour prédire le score selon prévisions météo
+    3. **Export PDF** : Rapport d'analyse téléchargeable
+    4. **Alertes email** : Notification si prévisions défavorables
+    5. **Comparaison aéroports** : Comparer avec Orly, Roissy, etc.
+
+    *Cette page est cruciale pour la planification opérationnelle et
+    l'analyse des risques météorologiques à moyen terme.*
+    """)
+
 # Footer
 st.markdown("""
 <div class="footer">

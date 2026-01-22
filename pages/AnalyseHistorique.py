@@ -779,6 +779,246 @@ with tab4:
             st.warning("Impossible de charger les données long terme")
 
 # =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture de la Page Analyse Historique (AnalyseHistorique.py)
+
+    Page la plus complexe de l'application, combinant **4 onglets d'analyse** :
+    évolution météo, trafic actuel, impact météo/aviation, et tendances climatiques multi-annuelles.
+
+    #### 📦 Structure en 4 Onglets (lignes 123-128)
+
+    ```python
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "Évolution Météo",        # Historique météo configurable
+        "Trafic Actuel",          # Snapshot des vols en cours
+        "Impact Météo/Aviation",  # Corrélations et scores
+        "Tendances Climatiques"   # Analyse multi-annuelle
+    ])
+    ```
+
+    #### 🌦️ Tab 1 : Évolution Météo (lignes 133-278)
+
+    **Sélection de Période Flexible**
+    ```python
+    period_choice = st.selectbox(
+        "Période d'analyse",
+        options=["7 jours", "14 jours", "30 jours", "90 jours", "Personnalisé"]
+    )
+
+    if period_choice == "Personnalisé":
+        start_date = st.date_input("Date début", ...)
+        end_date = st.date_input("Date fin", ...)
+        days = (end_date - start_date).days
+    ```
+    - **Date picker** : Sélection de dates avec contraintes
+    - **Validation** : Vérifie que fin > début, limite à 90 jours
+    - **Flexibilité** : Analyse sur mesure
+
+    **Graphiques Combinés**
+    ```python
+    # Température avec zone remplie entre min/max
+    fig_hist.add_trace(go.Scatter(..., fill='tonexty'))
+
+    # Vent avec seuil critique
+    fig_wind.add_hline(y=40, line_dash="dash", line_color="#EF4444")
+    ```
+
+    #### ✈️ Tab 2 : Trafic Actuel (lignes 282-421)
+
+    **Fonction classify_flight()**
+    ```python
+    def classify_flight(flight):
+        if destination in ['BVA', 'LFOB']:
+            return 'arrival'
+        elif origin in ['BVA', 'LFOB']:
+            return 'departure'
+        else:
+            return 'transit'
+    ```
+    - Réutilisation de logique métier
+    - Classification en temps réel
+
+    **Graphique Compagnies**
+    ```python
+    df_airlines = pd.DataFrame(sorted_airlines, columns=['Compagnie', 'Vols'])
+
+    fig = px.bar(
+        df_airlines,
+        x='Compagnie', y='Vols',
+        color='Vols',
+        color_continuous_scale=[[0, '#1e3a5f'], [1, '#00D4FF']]
+    )
+    ```
+    - **Gradient continu** : Visualisation de la dominance
+    - **Top 10** : Affiche seulement les principales compagnies
+
+    #### 🎯 Tab 3 : Impact Météo/Aviation (lignes 426-603)
+
+    **Méthodologie du Score**
+    ```python
+    with st.expander("Comment est calculé le score aviation ?"):
+        st.markdown(\"\"\"
+        Le score part de 100 et diminue selon :
+        - Vent > 50 km/h : -40 pts
+        - Vent 35-50 : -25 pts
+        - Rafales > 60 : -20 pts
+        - Précipitations > 20mm : -25 pts
+        - Brouillard/Orage/Neige : -30 à -35 pts
+        \"\"\")
+    ```
+    - **Transparence** : Algorithme explicité
+    - **Standards** : Basé sur normes ICAO/EUROCONTROL
+
+    **Analyse sur 30 Jours**
+    ```python
+    def calc_score(row):
+        score = 100
+        if row['Vent'] > 50: score -= 40
+        # ... autres pénalités
+        return max(0, score)
+
+    df_hist['Score'] = df_hist.apply(calc_score, axis=1)
+    df_hist['Impact'] = df_hist['Score'].apply(
+        lambda x: 'Favorable' if x >= 80
+                 else ('Modéré' if x >= 50 else 'Difficile')
+    )
+    ```
+    - **Calcul rétroactif** : Score calculé pour l'historique
+    - **Catégorisation** : Vert/Jaune/Rouge
+
+    **Scatter Plots de Corrélation**
+    ```python
+    fig1 = px.scatter(
+        df_hist,
+        x='Vent Max', y='Score',
+        color='Impact',
+        color_discrete_map={
+            'Favorable': '#22C55E',
+            'Modéré': '#EAB308',
+            'Difficile': '#EF4444'
+        }
+    )
+    ```
+    - **Nuage de points** : Visualisation de la relation
+    - **Couleur par catégorie** : Lecture intuitive
+
+    **Coefficient de Corrélation**
+    ```python
+    corr_vent = np.corrcoef(df_clean['Vent'], df_clean['Score'])[0, 1]
+    corr_precip = np.corrcoef(df_clean['Précip'], df_clean['Score'])[0, 1]
+    ```
+    - **Pearson** : Coefficient entre -1 (anticorrélation) et +1 (corrélation)
+    - Attendu : Valeur négative (plus de vent → score plus bas)
+
+    #### 🌍 Tab 4 : Tendances Climatiques (lignes 607-779)
+
+    **Données Multi-Annuelles**
+    ```python
+    start_year = st.selectbox("Année de début",
+                             options=[2026, 2025, 2024, ..., 1990])
+    end_year = st.selectbox("Année de fin", ...)
+
+    long_term = get_long_term_historical_weather(
+        start_year=start_year,
+        end_year=end_year
+    )
+    ```
+    - **Archive OpenMeteo** : Données depuis 1940
+    - **Limite** : Max ~5-10 ans pour temps de chargement raisonnable
+
+    **Statistiques Annuelles**
+    ```python
+    df_years = pd.DataFrame([
+        {
+            'Année': int(year),
+            'Temp Moy': stats['avg_temp'],
+            'Vent Moy': stats['avg_wind'],
+            'Vent Max': stats['max_wind'],
+            'Jours Vent Fort': stats['extreme_wind_days'],
+            'Jours Pluie': stats['rainy_days'],
+            'Jours Brouillard': stats['fog_days'],
+            'Jours Orage': stats['storm_days']
+        }
+        for year, stats in sorted(yearly.items())
+    ])
+    ```
+    - **Agrégation annuelle** : Synthèse par année
+    - **Comptage phénomènes** : Nombre de jours problématiques
+
+    **Ligne de Tendance**
+    ```python
+    z = np.polyfit(df_years['Année'].values,
+                  df_years['Temp Moy'].values, 1)  # Degré 1 = droite
+    p = np.poly1d(z)  # Crée le polynôme
+
+    fig_temp.add_trace(go.Scatter(
+        x=df_years['Année'], y=p(df_years['Année'].values),
+        mode='lines',
+        line=dict(dash='dash'),
+        name='Tendance'
+    ))
+    ```
+    - **np.polyfit()** : Régression linéaire
+    - **Ligne pointillée** : Visualise la tendance long terme
+    - **Évolution température** : Indicateur du changement climatique
+
+    **Graphique Multi-Séries**
+    ```python
+    fig_extreme = go.Figure()
+    fig_extreme.add_trace(go.Scatter(..., name='Vent fort'))
+    fig_extreme.add_trace(go.Scatter(..., name="Jours d'orage"))
+    fig_extreme.add_trace(go.Scatter(..., name='Jours de brouillard'))
+    ```
+    - **3 courbes superposées** : Comparaison visuelle
+    - **Légende interactive** : Cliquer pour masquer/afficher
+
+    #### 🔧 Points Techniques Avancés
+
+    **Gestion Session State**
+    ```python
+    if st.button("Analyser", type="primary"):
+        st.session_state['analyze_climate'] = True
+    ```
+    - **Évite rechargement intempestif** : Analyse à la demande
+    - **Optimisation** : Appels API coûteux
+
+    **Validation Dates**
+    ```python
+    if end_year < start_year:
+        st.error("L'année de fin doit être >= année de début")
+    ```
+    - **UX** : Feedback immédiat
+    - **Prévention erreurs** : Valide avant appel API
+
+    **Exception Handling**
+    ```python
+    try:
+        long_term = get_long_term_historical_weather(...)
+    except Exception as e:
+        st.error(f"Erreur : {e}")
+        long_term = None
+    ```
+    - **Robustesse** : Gère les échecs API
+    - **Message utilisateur** : Erreur claire
+
+    #### 🚀 Améliorations Possibles
+
+    1. **Machine Learning** : Prédiction du trafic selon prévisions météo
+    2. **Comparaison aéroports** : BVA vs CDG vs ORY
+    3. **Export rapports** : PDF/Excel des analyses
+    4. **Alertes automatiques** : Email si tendance défavorable
+    5. **Analyse saisonnière** : Patterns printemps/été/automne/hiver
+    6. **Impact économique** : Estimation coûts des retards météo
+
+    *Cette page représente le cœur analytique de l'application,
+    permettant une compréhension approfondie des patterns météo-aviation.*
+    """)
+
+# =============================================================================
 # Footer
 # =============================================================================
 st.markdown("""
