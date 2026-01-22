@@ -446,6 +446,205 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture de la Page Vols (Vols.py)
+
+    Cette page affiche le **trafic aérien détaillé** autour de Paris-Beauvais avec une
+    classification claire : arrivées BVA, départs BVA, et vols en transit.
+
+    #### 📦 Fonction de Classification (lignes 119-134)
+
+    **classify_flight() - Logique Métier**
+    ```python
+    def classify_flight(flight):
+        origin = flight.get('origin', 'N/A')
+        destination = flight.get('destination', 'N/A')
+
+        if destination in ['BVA', 'LFOB']:
+            return 'arrival'
+        elif origin in ['BVA', 'LFOB']:
+            return 'departure'
+        else:
+            return 'transit'
+    ```
+    - **BVA** : Code IATA de Paris-Beauvais
+    - **LFOB** : Code ICAO de Paris-Beauvais
+    - **Transit** : Tous les autres vols dans la zone 50 km
+
+    **Codes Aéroport**
+    | Type | Code | Usage |
+    |------|------|-------|
+    | IATA | BVA | Code 3 lettres (billets, bagages) |
+    | ICAO | LFOB | Code 4 lettres (ATC, plans de vol) |
+
+    #### 📊 Métriques Principales (lignes 195-245)
+
+    **Classification Automatique**
+    ```python
+    for flight in flights:
+        category = classify_flight(flight)
+        flight['category'] = category
+
+        if category == 'arrival':
+            arrivals_bva.append(flight)
+        elif category == 'departure':
+            departures_bva.append(flight)
+        else:
+            transit_flights.append(flight)
+    ```
+    - **Ajout de propriété** : `flight['category']` enrichit les données
+    - **Répartition** : Tri dans 3 listes distinctes
+
+    **Comptage En Vol vs Au Sol**
+    ```python
+    in_flight = len([f for f in flights if not f.get('on_ground', False)])
+    on_ground = len([f for f in flights if f.get('on_ground', False)])
+    ```
+    - **List comprehension avec filtre**
+    - **get('on_ground', False)** : Valeur par défaut si clé absente
+
+    #### 🎨 Affichage des Vols (lignes 250-335)
+
+    **3 Colonnes Égales**
+    ```python
+    col1, col2, col3 = st.columns(3)
+
+    with col1:  # Arrivées BVA
+        for flight in arrivals_bva[:8]:  # Limite 8 premiers
+            st.markdown(f\"\"\"
+            <div class="flight-card flight-card-arrival">
+                <strong style="color: #22C55E;">{flight['callsign']}</strong>
+                {origin} → <b>BVA</b> | {flight['aircraft_type']}
+            </div>
+            \"\"\")
+    ```
+    - **[:8]** : Slicing Python, affiche seulement les 8 premiers
+    - **HTML embarqué** : Style personnalisé avec classes CSS
+    - **Couleurs** : Vert (arrivée), Orange (départ), Gris (transit)
+
+    **Gestion des Listes Longues**
+    ```python
+    if len(arrivals_bva) > 8:
+        st.caption(f"... et {len(arrivals_bva) - 8} autres")
+    ```
+    - Évite de surcharger l'interface
+    - Indique qu'il y a plus de données
+
+    #### 📈 Statistiques (lignes 340-381)
+
+    **Tri par Fréquence**
+    ```python
+    airlines_stats = get_airlines_stats(flights)
+    sorted_airlines = sorted(
+        airlines_stats.items(),
+        key=lambda x: x[1],  # Trier par valeur (nombre de vols)
+        reverse=True         # Décroissant
+    )
+    ```
+    - **items()** : Retourne les paires (clé, valeur)
+    - **lambda x: x[1]** : Fonction de tri sur la valeur
+
+    **Affichage avec Pourcentages**
+    ```python
+    for airline, count in sorted_airlines[:6]:
+        pct = count / len(flights) * 100
+        st.markdown(f\"\"\"
+        <div>
+            <span>{airline}</span>
+            <span>{count} vols ({pct:.0f}%)</span>
+        </div>
+        \"\"\")
+    ```
+    - **Calcul dynamique** du pourcentage
+    - **:.0f** : Format sans décimale
+
+    #### 🗂️ Tableau Complet (lignes 387-401)
+
+    **DataFrame Pandas**
+    ```python
+    df = pd.DataFrame(flights)
+
+    # Mapping catégorie
+    category_map = {
+        'arrival': 'Arrivée BVA',
+        'departure': 'Départ BVA',
+        'transit': 'Transit'
+    }
+    df['Catégorie'] = df['category'].map(category_map)
+
+    # Sélection colonnes
+    cols_to_show = ['callsign', 'Catégorie', 'airline_icao', ...]
+    df_display = df[[c for c in cols_to_show if c in df.columns]]
+    ```
+    - **map()** : Remplace les valeurs selon un dictionnaire
+    - **List comprehension** : Sélection conditionnelle des colonnes
+    - **Sécurité** : Vérifie que la colonne existe
+
+    **Renommage des Colonnes**
+    ```python
+    df_display.columns = [
+        'Callsign', 'Catégorie', 'Compagnie',
+        'Avion', 'Origine', 'Destination',
+        'Altitude (ft)', 'Vitesse (kts)', 'Au sol'
+    ]
+    ```
+    - **Noms lisibles** en français
+    - **Unités explicites** : (ft), (kts)
+
+    #### 🔧 Points Techniques
+
+    **Gestion des Valeurs Manquantes**
+    ```python
+    origin = flight['origin'] if flight['origin'] != 'N/A' else '???'
+    status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
+    ```
+    - **Ternaire** : if-else condensé
+    - **Affichage cohérent** : Remplace les valeurs invalides
+
+    **Classes CSS Dynamiques**
+    ```python
+    <div class="flight-card flight-card-arrival">  # Arrivée
+    <div class="flight-card flight-card-departure">  # Départ
+    <div class="flight-card flight-card-transit">  # Transit
+    ```
+    - **Multiple classes** : Classe de base + classe spécifique
+    - **Bordure colorée** via `border-left-color` en CSS
+
+    #### 📊 Légende (lignes 430-446)
+
+    **Box Explicative**
+    ```python
+    st.markdown(\"\"\"
+    <div class="legend-box">
+        <div class="legend-item">
+            <div class="legend-dot" style="background: #22C55E;"></div>
+            <b>Arrivées BVA</b> — Vols dont la destination est BVA
+        </div>
+        <!-- ... -->
+    </div>
+    \"\"\")
+    ```
+    - **Pastilles colorées** pour la légende
+    - **Explications détaillées** de chaque catégorie
+
+    #### 🚀 Améliorations Possibles
+
+    1. **Filtrage** : Filtrer par compagnie, type d'avion, altitude
+    2. **Tri** : Trier par altitude, vitesse, heure d'arrivée
+    3. **Recherche** : Chercher un callsign spécifique
+    4. **Historique** : Voir les vols des dernières heures
+    5. **Export** : Télécharger la liste en CSV/Excel
+    6. **Notifications** : Alertes pour vols spécifiques
+
+    *Cette page permet de surveiller précisément l'activité aérienne
+    et de distinguer le trafic BVA des vols en transit.*
+    """)
+
+# =============================================================================
 # Footer
 # =============================================================================
 st.markdown(f"""

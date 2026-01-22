@@ -469,6 +469,199 @@ if history:
         st.dataframe(df, use_container_width=True, hide_index=True)
 
 # =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture de la Page Météo (Meteo.py)
+
+    Cette page fournit une **analyse météorologique complète** de Paris-Beauvais avec focus sur l'impact
+    sur l'aviation. Elle combine données en temps réel, prévisions et historique.
+
+    #### 📦 Structure du code
+
+    **1. Imports et Configuration (lignes 1-29)**
+    ```python
+    import plotly.graph_objects as go
+    from api.weather import (
+        get_current_weather,
+        get_hourly_forecast,
+        get_historical_weather,
+        get_aviation_conditions_forecast
+    )
+    ```
+    - Import des fonctions météo du module API personnalisé
+    - Plotly pour les visualisations interactives
+
+    #### 🌤️ Section 1 : Météo Actuelle (lignes 140-217)
+
+    **Affichage Principal**
+    ```python
+    icon, desc = get_weather_code_description(weather['weather_code'])
+
+    st.markdown(f\"\"\"
+    <div class="weather-main">
+        <div class="weather-icon">{icon}</div>
+        <div class="weather-temp">{weather['temperature_2m']}°C</div>
+        <div class="weather-desc">{desc}</div>
+    </div>
+    \"\"\")
+    ```
+    - **Icône météo** : Emoji selon le code WMO (World Meteorological Organization)
+    - **Grande température** : Affichage central avec style personnalisé
+    - **Description** : Texte lisible (ex: "Partiellement nuageux")
+
+    **Codes Météo WMO**
+    | Code | Description | Icône |
+    |------|-------------|-------|
+    | 0 | Ciel dégagé | ☀️ |
+    | 1-3 | Nuageux | ⛅ 🌥️ ☁️ |
+    | 45, 48 | Brouillard | 🌫️ |
+    | 51-67 | Pluie | 🌧️ 🌦️ |
+    | 71-77 | Neige | ❄️ 🌨️ |
+    | 95-99 | Orage | ⛈️ |
+
+    **Alertes Aviation (lignes 192-213)**
+    ```python
+    alerts = []
+    if wind > 40:
+        alerts.append(("danger", "Vent fort — Risque de retards"))
+    if humidity > 90:
+        alerts.append(("warning", "Humidité élevée — Risque de brouillard"))
+    if weather_code in [95, 96, 99]:
+        alerts.append(("danger", "Orage — Opérations suspendues"))
+    ```
+    - **Système d'alertes** basé sur les seuils aéronautiques
+    - **Classification** : success / warning / danger
+
+    #### 📅 Section 2 : Prévisions 7 Jours (lignes 220-269)
+
+    **Grille Compacte**
+    ```python
+    cols = st.columns(7)
+    for i, day in enumerate(aviation_forecast[:7]):
+        with cols[i]:
+            # Carte pour chaque jour
+            # Couleur selon le score aviation
+            if day['score'] >= 80:
+                border_color = "#22C55E"
+            # ...
+    ```
+    - **7 colonnes** : Une par jour de la semaine
+    - **Couleurs conditionnelles** : Vert/Jaune/Rouge selon le score
+    - **Données compactes** : Temp max/min, vent, précipitations, score
+
+    #### 📊 Section 3 : Évolution 24h (lignes 273-365)
+
+    **Onglets (Tabs)**
+    ```python
+    tab1, tab2, tab3 = st.tabs(["Température", "Vent", "Précipitations"])
+
+    with tab1:
+        fig_temp = go.Figure()
+        fig_temp.add_trace(go.Scatter(
+            x=hours_fmt, y=temps,
+            mode='lines+markers',
+            line=dict(color='#00D4FF', width=3),
+            fill='tozeroy',  # Remplissage sous la courbe
+            fillcolor='rgba(0, 212, 255, 0.1)'
+        ))
+    ```
+    - **st.tabs()** : Interface à onglets pour organiser les graphiques
+    - **Plotly Scatter** : Courbes de température avec remplissage
+    - **Métriques** : Min, Max, Amplitude calculées dynamiquement
+
+    **Graphique Vent avec Seuils**
+    ```python
+    fig_wind.add_hline(y=25, line_dash="dash",
+                      line_color="#EAB308",
+                      annotation_text="Turbulences (25)")
+    fig_wind.add_hline(y=40, line_dash="dash",
+                      line_color="#EF4444",
+                      annotation_text="Critique (40)")
+    ```
+    - **Lignes de référence** : Visualisation des seuils critiques
+    - **Annotations** : Labels explicatifs sur les seuils
+
+    #### 📏 Section 4 : Seuils Aviation (lignes 368-414)
+
+    **Tableau des Limites Opérationnelles**
+    ```python
+    st.markdown(\"\"\"
+    | Seuil | Valeur | Impact |
+    |-------|--------|--------|
+    | Favorable | < 25 km/h | Opérations normales |
+    | Modéré | 25-40 km/h | Turbulences possibles |
+    | Fort | > 40 km/h | Risque de retards |
+    \"\"\")
+    ```
+    - **Standards ICAO** : Organisation de l'aviation civile internationale
+    - **Spécificités B737/A320** : Avions couramment utilisés à Beauvais
+    - **Catégories ILS** : Instrument Landing System (atterrissage par mauvaise visibilité)
+
+    #### 📈 Section 5 : Historique (lignes 417-469)
+
+    **Graphiques Comparatifs**
+    ```python
+    fig_hist = go.Figure()
+    fig_hist.add_trace(go.Scatter(
+        x=df['Date'], y=df['Temp Max'],
+        mode='lines+markers',
+        name='Max',
+        line=dict(color='#EF4444', width=2)
+    ))
+    fig_hist.add_trace(go.Scatter(
+        x=df['Date'], y=df['Temp Min'],
+        fill='tonexty',  # Remplir entre les deux courbes
+        fillcolor='rgba(59, 130, 246, 0.1)'
+    ))
+    ```
+    - **Données 7 jours** : Températures min/max, vent, précipitations
+    - **Courbe remplie** : Zone entre min et max colorée
+    - **DataFrame** : Affichage tabulaire avec `st.dataframe()`
+
+    #### 🔧 Points Techniques
+
+    **Formatage des Heures**
+    ```python
+    hours_fmt = [h.split('T')[1][:5] for h in hours]
+    # "2025-01-22T14:00" => "14:00"
+    ```
+    - **ISO 8601** : Format standard des timestamps
+    - **Extraction** : Découpe de la chaîne pour n'afficher que l'heure
+
+    **Conversion Direction Vent**
+    ```python
+    directions = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
+    dir_idx = int((wind_dir + 22.5) / 45) % 8
+    direction_text = directions[dir_idx]
+    ```
+    - **Conversion degrés → points cardinaux**
+    - 360° divisé en 8 secteurs de 45°
+
+    #### 📊 API OpenMeteo
+
+    **Points de Terminaison Utilisés**
+    | Endpoint | Données | Fréquence |
+    |----------|---------|-----------|
+    | `/weather` | Météo actuelle | Temps réel (mise à jour toutes les heures) |
+    | `/forecast` | Prévisions 7j | 4 fois/jour |
+    | `/historical` | Archive | Journalier depuis 1940 |
+
+    #### 🚀 Améliorations Possibles
+
+    1. **Comparaison annuelle** : Comparer avec le même jour l'année précédente
+    2. **Alertes personnalisées** : Email si conditions critiques prévues
+    3. **Export PDF** : Rapport météo pour les opérations
+    4. **API radar** : Afficher les images radar de pluie
+    5. **Prédictions ML** : Modèle prédictif pour anticiper les conditions
+
+    *Cette page est essentielle pour la planification des vols et l'évaluation
+    des risques météorologiques.*
+    """)
+
+# =============================================================================
 # Footer
 # =============================================================================
 st.markdown(f"""

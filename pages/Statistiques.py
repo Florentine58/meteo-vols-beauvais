@@ -460,6 +460,218 @@ with st.expander("Voir le tableau des vols"):
     else:
         st.info("Aucune donnée à afficher.")
 
+# =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture de la Page Statistiques (Statistiques.py)
+
+    Cette page effectue une **analyse statistique du trafic aérien** et établit des corrélations
+    avec les conditions météorologiques. Elle utilise des visualisations Plotly avancées.
+
+    #### 📦 Structure du code
+
+    **1. Imports Spécialisés (lignes 1-15)**
+    ```python
+    import plotly.express as px  # Graphiques rapides
+    import plotly.graph_objects as go  # Graphiques personnalisés
+    import pandas as pd  # Manipulation de données
+    ```
+    - **Plotly Express** : API haut niveau pour graphiques rapides
+    - **Plotly Graph Objects** : Contrôle fin des graphiques
+    - **Pandas** : Traitement et analyse de données
+
+    #### 📊 Section 1 : Vue d'Ensemble (lignes 163-208)
+
+    **Métriques Principales**
+    - Nombre total de vols détectés dans la zone 50 km
+    - Vols en vol vs au sol
+    - Température actuelle
+    - Affichage avec cartes stylisées en HTML
+
+    #### 🏢 Section 2 : Statistiques Compagnies (lignes 211-266)
+
+    **Fonction get_airlines_stats()**
+    ```python
+    # Dans api/flights.py
+    def get_airlines_stats(flights):
+        stats = {}
+        for flight in flights:
+            airline = flight.get('airline_icao', 'N/A')
+            if airline not in stats:
+                stats[airline] = 0
+            stats[airline] += 1
+        return stats
+    ```
+    - Compte le nombre de vols par compagnie
+    - Retourne un dictionnaire `{compagnie: nombre_vols}`
+
+    **Graphique en Barres Plotly Express**
+    ```python
+    fig_airlines = px.bar(
+        df_airlines,
+        x="Compagnie",
+        y="Vols",
+        color="Vols",
+        color_continuous_scale=[[0, '#1e3a5f'], [1, '#00D4FF']]
+    )
+    ```
+    - **Gradient de couleur** : Plus le nombre de vols est élevé, plus la barre est cyan
+    - **Interaction** : Hover pour voir les détails
+
+    **Graphique Camembert (Pie Chart)**
+    ```python
+    fig_pie = px.pie(
+        df_airlines,
+        values="Vols",
+        names="Compagnie",
+        color_discrete_sequence=px.colors.sequential.Blues_r
+    )
+    ```
+    - **Répartition visuelle** du trafic par compagnie
+    - **Blues_r** : Palette de bleus inversée (plus foncé = plus important)
+
+    #### ✈️ Section 3 : Types d'Avions (lignes 269-305)
+
+    **Distribution des Types**
+    ```python
+    aircraft_stats = get_aircraft_stats(flights)
+    # Retourne ex: {'B738': 5, 'A320': 3, 'E190': 2, ...}
+
+    df_aircraft = pd.DataFrame([
+        {"Type": k, "Nombre": v}
+        for k, v in sorted(aircraft_stats.items(),
+                          key=lambda x: x[1], reverse=True)
+    ])
+    ```
+    - **Tri décroissant** : Types les plus fréquents en premier
+    - **DataFrame Pandas** : Structure de données tabulaire
+
+    **Codes ICAO des Avions**
+    | Code | Modèle | Fabricant |
+    |------|--------|-----------|
+    | B738 | Boeing 737-800 | Boeing |
+    | A320 | Airbus A320 | Airbus |
+    | E190 | Embraer 190 | Embraer |
+    | AT76 | ATR 72-600 | ATR |
+
+    #### 📈 Section 4 : Altitudes et Vitesses (lignes 308-368)
+
+    **Histogrammes Plotly**
+    ```python
+    fig_alt = go.Figure()
+    fig_alt.add_trace(go.Histogram(
+        x=altitudes,
+        nbinsx=20,  # 20 barres
+        marker_color='#00D4FF'
+    ))
+    ```
+    - **Histogramme** : Distribution statistique des altitudes
+    - **nbinsx** : Nombre de "buckets" pour regrouper les données
+    - Permet de voir les altitudes de croisière fréquentes
+
+    **Calculs Statistiques**
+    ```python
+    avg_alt = sum(altitudes) / len(altitudes)
+    avg_speed = sum(speeds) / len(speeds)
+    ```
+    - Moyenne simple
+    - Conversion ft → m : `altitude_m = altitude_ft * 0.3048`
+    - Conversion kts → km/h : `vitesse_kmh = vitesse_kts * 1.852`
+
+    #### 🌦️ Section 5 : Corrélation Météo/Trafic (lignes 371-446)
+
+    **Algorithme de Scoring**
+    ```python
+    conditions_score = 100
+
+    wind_speed = weather['wind_speed_10m']
+    if wind_speed > 40:
+        conditions_score -= 40  # Impact majeur
+    elif wind_speed > 25:
+        conditions_score -= 20  # Turbulences
+
+    humidity = weather['relative_humidity_2m']
+    if humidity > 90:
+        conditions_score -= 15  # Risque brouillard
+    ```
+    - Score commence à 100 (parfait)
+    - Pénalités selon les conditions
+    - Résultat : 80-100 (excellent), 50-79 (vigilance), 0-49 (difficile)
+
+    **Analyse Trafic**
+    ```python
+    if len(flights) > 10:
+        st.markdown('Trafic dense — Activité importante')
+    elif len(flights) > 5:
+        st.markdown('Trafic modéré — Activité normale')
+    else:
+        st.markdown('Trafic faible — Activité réduite')
+    ```
+    - Seuils empiriques basés sur l'observation
+    - Beauvais n'est pas un hub international (trafic < Paris-CDG)
+
+    **Corrélation Météo/Trafic**
+    ```python
+    if wind_speed > 30 and len(flights) < 5:
+        st.caption("Le vent fort pourrait expliquer le faible trafic.")
+    ```
+    - Hypothèse : conditions difficiles → moins de vols
+    - **Limitation** : Les données en temps réel ne permettent pas de voir les annulations
+
+    #### 🔧 Points Techniques
+
+    **Pandas List Comprehension**
+    ```python
+    df_airlines = pd.DataFrame([
+        {"Compagnie": k, "Vols": v}
+        for k, v in sorted(airlines_stats.items(),
+                          key=lambda x: x[1], reverse=True)
+    ])
+    ```
+    - **List comprehension** : Création rapide de liste Python
+    - **sorted()** : Tri par valeur (nombre de vols)
+    - **lambda** : Fonction anonyme pour extraire la valeur de tri
+
+    **Plotly Layout Personnalisé**
+    ```python
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',  # Fond transparent
+        plot_bgcolor='rgba(0,0,0,0)',   # Zone graphique transparente
+        xaxis=dict(showgrid=False, color='#64748B'),
+        yaxis=dict(showgrid=True, gridcolor='#1E293B')
+    )
+    ```
+    - **RGBA** : Rouge, Vert, Bleu, Alpha (transparence)
+    - **Grille Y** : Aide à la lecture des valeurs
+    - **Pas de grille X** : Plus épuré visuellement
+
+    #### 📊 Données Affichées
+
+    **Tableau DataFrame**
+    ```python
+    df_display = df_flights[['callsign', 'airline_icao', ...]]
+    df_display.columns = ['Callsign', 'Compagnie', ...]
+    st.dataframe(df_display, use_container_width=True, hide_index=True)
+    ```
+    - **Colonnes filtrées** : Sélection des colonnes pertinentes
+    - **Renommage** : Noms lisibles en français
+    - **hide_index** : Masquer l'index Pandas
+
+    #### 🚀 Améliorations Possibles
+
+    1. **Statistiques temporelles** : Évolution du trafic sur la journée/semaine
+    2. **Comparaison historique** : Comparer avec le même jour l'année précédente
+    3. **Heatmap horaire** : Densité du trafic par heure de la journée
+    4. **Analyse routes** : Quelles sont les routes les plus fréquentes ?
+    5. **Machine Learning** : Prédiction du nombre de vols selon la météo
+
+    *Cette page permet d'identifier les patterns de trafic et l'influence
+    des conditions météorologiques sur les opérations aériennes.*
+    """)
+
 # Footer
 st.markdown("""
 <div class="footer">

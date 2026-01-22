@@ -655,6 +655,176 @@ else:
     st.info("Aucun vol détecté dans la zone de surveillance (50 km autour de BVA)")
 
 # =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture de la Page Carte (Carte.py)
+
+    Cette page affiche une **carte interactive** avec tous les avions dans un rayon de 50 km autour de Beauvais,
+    ainsi que les zones de qualité de l'air et les trajectoires estimées.
+
+    #### 📦 Structure du code
+
+    **1. Imports et Configuration (lignes 1-21)**
+    ```python
+    import folium  # Cartes interactives Leaflet
+    from folium.plugins import HeatMap
+    from streamlit_folium import st_folium  # Intégration Folium dans Streamlit
+    ```
+    - **Folium** : Bibliothèque Python pour créer des cartes Leaflet
+    - **streamlit_folium** : Permet d'afficher les cartes Folium dans Streamlit
+
+    **2. Contrôles de la Carte (lignes 165-197)**
+    ```python
+    if 'carte_figee' not in st.session_state:
+        st.session_state['carte_figee'] = False
+    ```
+    - **État Streamlit** : Gestion de l'état figé/temps réel de la carte
+    - **Session state** : Permet de conserver l'état entre les reruns
+
+    #### 🗺️ Construction de la Carte
+
+    **1. Initialisation de la Carte (lignes 335-339)**
+    ```python
+    m = folium.Map(
+        location=[BVA_LAT, BVA_LON],
+        zoom_start=10,
+        tiles='CartoDB dark_matter'  # Thème sombre
+    )
+    ```
+    - Centrage sur Beauvais (49.4544°N, 2.1128°E)
+    - Utilisation d'un fond de carte sombre pour un rendu professionnel
+
+    **2. Zones de Qualité de l'Air (lignes 342-361)**
+    ```python
+    if show_aqi_zones:
+        # Zone large (20 km) - Qualité air globale
+        folium.Circle(
+            location=[BVA_LAT, BVA_LON],
+            radius=20000,  # 20 km en mètres
+            color=aqi_color,  # Couleur dynamique selon AQI
+            fillOpacity=aqi_opacity
+        ).add_to(m)
+
+        # Zone impact direct (5 km) - Impact aviation
+        folium.Circle(
+            radius=5000,
+            color=impact['impact_color']
+        ).add_to(m)
+    ```
+    - **Cercles concentriques** pour visualiser les zones d'impact
+    - Couleurs dynamiques selon les valeurs AQI et impact
+
+    **3. Marqueurs d'Avions (lignes 414-480)**
+    ```python
+    for flight in flights:
+        # Classification du vol
+        is_bva_arrival = dest in ['BVA', 'LFOB']
+        is_bva_departure = origin in ['BVA', 'LFOB']
+
+        # Couleur selon la catégorie
+        if is_bva_arrival:
+            color = 'green'
+            category = "Arrivée BVA"
+        elif is_bva_departure:
+            color = 'orange'
+            category = "Départ BVA"
+        else:
+            color = 'lightblue'
+            category = "Transit"
+    ```
+    - **Classification automatique** des vols (arrivée/départ/transit)
+    - **Marqueurs Folium** avec popups HTML personnalisés
+
+    **4. Trajectoires (lignes 459-480)**
+    ```python
+    if show_trajectories and not is_ground:
+        if is_bva_arrival:
+            folium.PolyLine(
+                [flight_coords, bva_coords],
+                color='#22C55E',
+                weight=2,
+                opacity=0.7,
+                dash_array='5, 5'  # Ligne pointillée
+            ).add_to(m)
+    ```
+    - **PolyLine** : Lignes entre la position actuelle et l'aéroport
+    - Différenciation arrivée (vert) / départ (orange)
+
+    #### 🎯 Fonctionnalités Clés
+
+    **1. Mode Figé/Temps Réel**
+    ```python
+    if st.session_state.get('carte_figee', False):
+        # Utiliser les données en cache
+        weather = st.session_state['cached_weather']
+    else:
+        # Recharger les données
+        weather = get_current_weather()
+        st.session_state['cached_weather'] = weather
+    ```
+    - Permet de "figer" la carte pour analyser sans rechargements
+    - Données stockées dans `st.session_state`
+
+    **2. Calcul Dynamique des Couleurs AQI**
+    ```python
+    if aqi <= 20:
+        aqi_color = '#22C55E'  # Vert
+        aqi_opacity = 0.15
+    elif aqi <= 40:
+        aqi_color = '#84CC16'  # Vert clair
+        aqi_opacity = 0.15
+    # ... etc
+    ```
+    - Échelle de couleurs progressive selon l'indice AQI
+    - Opacité variable pour la lisibilité
+
+    #### 📊 Panneau Latéral (col_info)
+
+    **Légendes et Informations (lignes 484-566)**
+    - **Légende des couleurs** : Explicitation des codes couleurs
+    - **Zones colorées** : Détail AQI et impact
+    - **Polluants** : Valeurs PM2.5, PM10, NO₂ avec seuils OMS
+
+    #### 🛠️ Technologies Utilisées
+
+    | Bibliothèque | Usage |
+    |--------------|-------|
+    | **Folium** | Cartes interactives (Leaflet.js) |
+    | **streamlit_folium** | Intégration Streamlit |
+    | **Plotly** | Graphique donut trafic |
+    | **Pandas** | Manipulation données vols |
+
+    #### 🎨 Personnalisation Folium
+
+    **Popups HTML Personnalisés**
+    ```python
+    flight_popup = f\"\"\"
+    <div style="font-family: Arial; width: 200px;">
+        <h4>{flight['callsign']}</h4>
+        <p><b>Altitude:</b> {flight['altitude']} ft</p>
+    </div>
+    \"\"\"
+    folium.Marker(popup=folium.Popup(flight_popup, max_width=220))
+    ```
+    - HTML/CSS embarqué dans les popups
+    - Design cohérent avec le reste de l'application
+
+    #### 🚀 Optimisations Possibles
+
+    1. **Clustering** : Regrouper les marqueurs proches (Folium MarkerCluster)
+    2. **Heatmap** : Carte de chaleur du trafic aérien
+    3. **Animation** : Trajectoires animées avec historique
+    4. **Filtres** : Filtrer par compagnie, altitude, type d'avion
+    5. **3D** : Visualisation 3D avec deck.gl
+
+    *Cette carte permet de visualiser en un coup d'œil l'activité aérienne et
+    la qualité de l'air autour de Paris-Beauvais.*
+    """)
+
+# =============================================================================
 # Footer
 # =============================================================================
 st.markdown(f"""

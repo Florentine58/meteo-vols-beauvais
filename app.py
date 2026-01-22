@@ -793,6 +793,122 @@ with col3:
     st.caption(" • ".join(airport['principales_compagnies']))
 
 # =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture du Dashboard Principal (app.py)
+
+    Ce fichier constitue la **page d'accueil** de l'application BVA Monitor. Il intègre toutes les données
+    essentielles sur un seul écran pour une vision globale rapide.
+
+    #### 📦 Structure du code
+
+    **1. Configuration et Imports (lignes 1-23)**
+    ```python
+    import streamlit as st
+    import plotly.graph_objects as go
+    from api.weather import get_current_weather, ...
+    from api.flights import get_flights_in_area, ...
+    from api.air_quality import get_current_air_quality, ...
+    ```
+    - Import des bibliothèques : Streamlit pour l'interface, Plotly pour les graphiques
+    - Import des modules API personnalisés pour récupérer les données
+
+    **2. CSS Personnalisé (lignes 24-270)**
+    - Style professionnel avec dégradés, cartes, badges
+    - Animations (pulse sur le badge LIVE)
+    - Design responsive et moderne
+
+    **3. Chargement des Données (lignes 299-305)**
+    ```python
+    weather = get_current_weather()
+    flights = get_flights_in_area()
+    forecast = get_aviation_conditions_forecast()
+    hourly = get_hourly_forecast(days=1)
+    airport = get_airport_info()
+    air_quality = get_current_air_quality()
+    ```
+    - Appels aux différentes APIs en parallèle
+    - Cache Streamlit pour optimiser les performances
+
+    #### 🔧 Sections Principales
+
+    **Section 1 : Métriques Principales (lignes 308-340)**
+    - Affichage des valeurs clés : température, vent, humidité, nombre de vols
+    - Utilisation de `st.metric()` pour un affichage standardisé
+
+    **Section 2 : Score Aviation + Trafic (lignes 343-507)**
+    - **Score Aviation (0-100)** : Calcule la qualité des conditions de vol
+      - Algorithme dans `api/weather.py:get_aviation_conditions_forecast()`
+      - Pénalités selon le vent, précipitations, phénomènes météo
+    - **Graphique Donut** : Visualisation vols en l'air vs au sol (Plotly)
+    - **Prévisions 7 jours** : Grille compacte avec scores quotidiens
+
+    **Section 3 : Qualité de l'Air & Impact (lignes 510-652)**
+    - **AQI Européen** : Indice de qualité de l'air (0-100+)
+      - Calcul dans `api/air_quality.py:get_current_air_quality()`
+      - Basé sur PM2.5, PM10, NO₂, O₃, SO₂
+    - **Impact Aviation** : Estimation des émissions du trafic aérien
+      - CO₂, NOx, particules par vol
+      - Facteur de dispersion selon le vent
+
+    **Section 4 : Graphiques Météo (lignes 656-771)**
+    - Utilisation de Plotly pour les graphiques interactifs
+    - 4 graphiques : Température, Vent, Précipitations, Conditions actuelles
+    - Données horaires sur 24h
+
+    #### 🎯 Points Techniques Importants
+
+    **Cache et Performance**
+    ```python
+    with st.spinner("Chargement..."):
+        weather = get_current_weather()  # Mis en cache 5 min
+    ```
+    - Les fonctions API utilisent `@st.cache_data` pour limiter les appels
+    - Bouton "Actualiser" vide le cache : `st.cache_data.clear()`
+
+    **Gestion des Valeurs Manquantes**
+    ```python
+    if weather:
+        st.metric("TEMPÉRATURE", f"{weather['temperature_2m']}°C")
+    else:
+        st.metric("TEMPÉRATURE", "N/A")
+    ```
+    - Vérifications systématiques pour éviter les erreurs
+
+    **Couleurs Dynamiques**
+    ```python
+    if score >= 80:
+        score_class = "score-green"
+    elif score >= 50:
+        score_class = "score-yellow"
+    else:
+        score_class = "score-red"
+    ```
+    - Classes CSS appliquées dynamiquement selon les valeurs
+
+    #### 📊 Sources de Données
+
+    | API | Données | Fréquence |
+    |-----|---------|-----------|
+    | **OpenMeteo** | Météo, qualité air | Temps réel |
+    | **FlightRadar24** | Positions avions | 30s |
+    | **Calculé** | Score aviation, impact | À la demande |
+
+    #### 🚀 Optimisations Possibles
+
+    1. **WebSockets** pour les vols en temps réel (actualisation auto)
+    2. **Base de données** pour historiser les scores aviation
+    3. **Machine Learning** pour prédire les retards selon la météo
+    4. **Alertes email** si conditions critiques détectées
+
+    *Ce dashboard est le point d'entrée de l'application et donne une vue d'ensemble complète
+    de la situation à Paris-Beauvais.*
+    """)
+
+# =============================================================================
 # Footer
 # =============================================================================
 st.markdown("""

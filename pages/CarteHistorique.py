@@ -846,6 +846,287 @@ La vraie trajectoire suit :
     """, unsafe_allow_html=True)
 
 # =============================================================================
+# Section Explicative du Code
+# =============================================================================
+st.divider()
+with st.expander("📘 Comprendre le code de cette page"):
+    st.markdown("""
+    ### Architecture de la Page Carte Historique (CarteHistorique.py)
+
+    Page la plus technique de l'application, affichant les **trajectoires réelles des vols**
+    via OpenSky Network et établissant des corrélations avec les conditions météorologiques.
+
+    #### 🔐 Test de Connexion OpenSky (lignes 134-157)
+
+    **Authentification**
+    ```python
+    conn_status = test_connection()
+
+    if conn_status['status'] == 'error':
+        st.markdown('Connexion échouée : {message}')
+        st.stop()  # Arrête l'exécution de la page
+    elif conn_status['status'] == 'warning':
+        st.markdown('Compte non authentifié - Trajectoires limitées')
+    else:
+        st.markdown('Connexion réussie — Trajectoires disponibles')
+    ```
+    - **test_connection()** : Vérifie les credentials OpenSky
+    - **st.stop()** : Stoppe l'exécution si échec critique
+    - **3 états** : error (bloquant), warning (dégradé), success (normal)
+
+    **Configuration OpenSky**
+    ```python
+    # Dans .env
+    OPENSKY_USERNAME=votre_username
+    OPENSKY_PASSWORD=votre_password
+    ```
+    - **Compte gratuit** : ~400 requêtes/jour
+    - **Sans compte** : ~100 requêtes/jour, pas de trajectoires
+
+    #### 🗺️ Construction de la Carte (lignes 374-527)
+
+    **Initialisation Folium**
+    ```python
+    m = folium.Map(
+        location=[BVA_LAT, BVA_LON],
+        zoom_start=7,  # Vue régionale
+        tiles='CartoDB dark_matter'
+    )
+
+    # Feature Groups pour layers
+    layer_real = folium.FeatureGroup(name="Trajets réels", show=True)
+    layer_est = folium.FeatureGroup(name="Trajets estimés", show=True)
+    layer_pts = folium.FeatureGroup(name="Points orig/dest", show=False)
+    ```
+    - **zoom_start=7** : Vue large (région Île-de-France)
+    - **FeatureGroup** : Groupes de couches activables/désactivables
+    - **LayerControl** : Contrôle interactif des couches
+
+    **Boucle sur les Vols**
+    ```python
+    for flight in all_flights:
+        # Calcul du score météo du jour
+        t = flight.get('last_seen') or flight.get('first_seen')
+        day_str = t.strftime("%Y-%m-%d")
+        weather_score = weather_scores.get(day_str, 50)
+
+        # Couleur selon le mode
+        color = get_track_color(flight, weather_score)
+    ```
+    - **Mapping date → score** : Associe chaque vol à la météo du jour
+    - **Fonction get_track_color()** : Détermine la couleur selon le mode
+
+    #### ✈️ Trajectoires Réelles (lignes 426-461)
+
+    **Données OpenSky**
+    ```python
+    if show_real and flight.get('has_track'):
+        waypoints = flight['track'].get('waypoints', [])
+        coords = safe_waypoint_coords(waypoints)
+
+        if len(coords) >= 2:
+            folium.PolyLine(
+                coords,
+                color=color,
+                weight=3,
+                opacity=0.85,
+                tooltip=f"{callsign} | {origin} → {dest} (réel)"
+            ).add_to(layer_real)
+    ```
+    - **waypoints** : Liste de positions GPS (lat, lon, alt, time)
+    - **PolyLine** : Trace la trajectoire point par point
+    - **weight=3** : Épaisseur de ligne
+
+    **Structure Waypoint**
+    ```python
+    waypoint = {
+        'lat': 49.4544,
+        'lon': 2.1128,
+        'altitude': 3500,  # feet
+        'time': 1705928400  # timestamp Unix
+    }
+    ```
+
+    #### 📍 Trajectoires Estimées (lignes 464-518)
+
+    **Algorithme d'Estimation**
+    ```python
+    if show_est and not flight.get('has_track'):
+        if flight.get('is_arrival'):
+            origin_coords = get_airport_coords(origin_code)
+            if origin_coords:
+                estimated = estimate_flight_path(
+                    origin_coords,
+                    (BVA_LAT, BVA_LON),
+                    20  # 20 points intermédiaires
+                )
+    ```
+    - **get_airport_coords()** : Récupère lat/lon d'un aéroport via code ICAO
+    - **estimate_flight_path()** : Interpolation linéaire
+    - **Ligne pointillée** : `dash_array='5, 6'`
+
+    **Fonction estimate_flight_path()**
+    ```python
+    def estimate_flight_path(origin, dest, num_points=30):
+        points = []
+        for i in range(num_points + 1):
+            t = i / num_points  # 0.0 à 1.0
+            lat = origin[0] + t * (dest[0] - origin[0])
+            lon = origin[1] + t * (dest[1] - origin[1])
+            points.append({'lat': lat, 'lon': lon})
+        return points
+    ```
+    - **Interpolation linéaire** : Ligne droite entre A et B
+    - **Limitations** : Ne suit pas les couloirs aériens réels (SID/STAR)
+
+    #### 🎨 Modes de Coloration (lignes 295-323)
+
+    **Fonction get_track_color()**
+    ```python
+    def get_track_color(flight, weather_score=None):
+        if color_mode == "type":
+            return '#22C55E' if flight['is_arrival'] else '#F97316'
+
+        if color_mode == "weather":
+            if weather_score >= 80:
+                return '#22C55E'
+            elif weather_score >= 50:
+                return '#EAB308'
+            else:
+                return '#EF4444'
+
+        if color_mode == "time":
+            hour = flight.get('last_seen').hour
+            if 6 <= hour < 12:
+                return '#FCD34D'  # Matin
+            elif 12 <= hour < 18:
+                return '#F97316'  # Après-midi
+            # ...
+    ```
+    - **3 modes** : type (arrivée/départ), weather (météo), time (heure)
+    - **Sélecteur** : `st.selectbox("Coloration", options=[...])`
+
+    #### 📊 Analyse Météo (lignes 606-660)
+
+    **Calcul des Scores Météo**
+    ```python
+    weather_scores = {}
+    for i, date in enumerate(times):
+        wind = winds[i]
+        precip = precs[i]
+
+        score = 100
+        if wind > 50: score -= 40
+        elif wind > 35: score -= 25
+        # ... autres pénalités
+
+        weather_scores[date] = max(0, int(score))
+    ```
+    - **Dictionnaire date → score** : Mapping rapide
+    - **Réutilisation** : Même algorithme que dashboard
+
+    **Graphique Vent avec Seuils**
+    ```python
+    fig.add_trace(go.Bar(
+        x=df_weather['Date'],
+        y=df_weather['Vent Max (km/h)'],
+        marker_color='#8B5CF6'
+    ))
+    fig.add_hline(y=40, line_dash="dash", line_color="#EF4444",
+                  annotation_text="Seuil critique (40 km/h)")
+    fig.add_hline(y=25, line_dash="dot", line_color="#EAB308",
+                  annotation_text="Seuil vigilance (25 km/h)")
+    ```
+    - **Barres** : Vent max par jour
+    - **Lignes horizontales** : Seuils de référence
+    - **Annotations** : Labels explicatifs
+
+    #### 🔧 Fonctions Utilitaires
+
+    **safe_waypoint_coords()**
+    ```python
+    def safe_waypoint_coords(waypoints):
+        coords = []
+        for wp in waypoints or []:
+            lat = wp.get('lat')
+            lon = wp.get('lon')
+            if lat is not None and lon is not None:
+                coords.append([lat, lon])
+        return coords
+    ```
+    - **Validation** : Vérifie que lat/lon existent
+    - **Protection** : Évite les erreurs si données manquantes
+
+    **pick_origin_code() / pick_dest_code()**
+    ```python
+    def pick_origin_code(f):
+        code = f.get('origin_icao') or f.get('origin')
+        if code in (None, "", "N/A"):
+            return None
+        return code
+    ```
+    - **Priorité ICAO** : Préfère code ICAO (4 lettres)
+    - **Fallback IATA** : Sinon code IATA (3 lettres)
+
+    #### 💾 Optimisations Performance
+
+    **Cache Streamlit**
+    ```python
+    @st.cache_data(ttl=600, show_spinner=False)
+    def load_flight_data(hours, max_tracks):
+        return get_beauvais_flights_with_tracks(...)
+
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def load_weather_data(days):
+        return get_historical_weather(days=days)
+    ```
+    - **ttl=600** : Cache pendant 10 minutes
+    - **ttl=3600** : Cache pendant 1 heure (météo historique)
+    - **show_spinner=False** : Pas de spinner lors du cache
+
+    **Limitation Trajectoires**
+    ```python
+    max_tracks = st.selectbox("Max trajectoires", [10, 20, 30, 50])
+    ```
+    - **Économise crédits OpenSky** : Limite les appels
+    - **Performance** : Moins de données = affichage plus rapide
+
+    #### 📋 Tab Méthodologie (lignes 664-846)
+
+    **Documentation Complète**
+    - Explication des sources (FlightRadar24 vs OpenSky)
+    - Différence trajets réels vs estimés
+    - Algorithme d'estimation détaillé
+    - Schéma ASCII des trajectoires
+    - Recommandations pour aller plus loin (APIs premium)
+
+    **Valeur Pédagogique**
+    ```python
+    st.code(\"\"\"
+                    ✈️ Vraie trajectoire (courbe)
+                   /
+    ORIGINE ○─────/───────────○ BVA
+                 /
+                - - - - - - -   Estimation (droite)
+    \"\"\", language=None)
+    ```
+    - **Visualisation ASCII** : Compréhension intuitive
+    - **Transparence** : Limites clairement indiquées
+
+    #### 🚀 Améliorations Possibles
+
+    1. **Clustering trajectoires** : Identifier les routes standards (SID/STAR)
+    2. **Animation** : Rejouer les trajectoires avec timeline
+    3. **Altitudes 3D** : Visualisation avec deck.gl ou Cesium
+    4. **Analyse patterns** : ML pour détecter les trajectoires anormales
+    5. **Export KML** : Télécharger pour Google Earth
+    6. **Comparaison vents** : Superposer les vents d'altitude (WindyAPI)
+
+    *Cette page représente le pinnacle technique de l'application,
+    combinant données temps réel, historiques et géospatiales.*
+    """)
+
+# =============================================================================
 # Footer
 # =============================================================================
 st.markdown(f"""
