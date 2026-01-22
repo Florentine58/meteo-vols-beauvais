@@ -147,7 +147,7 @@ with tab1:
         with col2:
             # Date de fin = hier (données disponibles)
             max_date = datetime.now().date() - timedelta(days=1)
-            min_date = max_date - timedelta(days=365)  # Max 1 an en arrière
+            min_date = max_date - timedelta(days=730)  # Max 2 an en arrière
             
             col_start, col_end = st.columns(2)
             with col_start:
@@ -640,14 +640,14 @@ with tab4:
     with col1:
         start_year = st.selectbox(
             "Année de début",
-            options=[2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2010, 2005, 2000, 1995, 1990],
+            options=[2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2010, 2005, 2000, 1995, 1990],
             index=5,  # 2019 par défaut
             key="start_year"
         )
     
     with col2:
         # Options pour l'année de fin (toujours >= année de début)
-        end_options = [y for y in [2024, 2023, 2022, 2021, 2020] if y >= start_year]
+        end_options = [y for y in [2026,2025,2024, 2023, 2022, 2021, 2020] if y >= start_year]
         end_year = st.selectbox(
             "Année de fin",
             options=end_options,
@@ -771,12 +771,20 @@ with tab4:
                 
                 fig_extreme.update_layout(
                     title=dict(text="Évolution des phénomènes impactant l'aviation", font=dict(size=14, color='#FAFAFA')),
-                    height=350, margin=dict(t=50, b=40, l=50, r=20),
-                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    height=350,
+                    margin=dict(t=75, b=40, l=50, r=20),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
                     xaxis=dict(showgrid=False, color='#64748B', dtick=1),
                     yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B', title='Nombre de jours'),
-                    legend=dict(orientation='h', y=1.15, font=dict(color='#94A3B8'))
+                    legend=dict(
+                        orientation='h',
+                        yanchor='top', y=1.0,
+                        xanchor='left', x=0,
+                        font=dict(color='#94A3B8')
+                    )
                 )
+
                 st.plotly_chart(fig_extreme, use_container_width=True)
                 
                 # Données brutes

@@ -17,7 +17,7 @@ from api.air_quality import get_current_air_quality, calculate_aviation_air_impa
 # Configuration
 st.set_page_config(
     page_title="BVA Monitor | Carte",
-    page_icon="🗺️",
+    page_icon="",
     layout="wide"
 )
 
