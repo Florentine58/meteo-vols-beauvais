@@ -93,19 +93,56 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =============================================================================
-# Fonction de classification des vols
+# Fonctions utilitaires
 # =============================================================================
 def classify_flight(flight):
     """Classifie un vol : arrivée BVA, départ BVA, ou transit."""
     origin = flight.get('origin', 'N/A')
     destination = flight.get('destination', 'N/A')
-    
+
     if destination in ['BVA', 'LFOB']:
         return 'arrival'
     elif origin in ['BVA', 'LFOB']:
         return 'departure'
     else:
         return 'transit'
+
+def render_stat_card(value, label, color_class=""):
+    """Affiche une carte de statistique de manière standardisée."""
+    return f"""
+    <div class="stat-card">
+        <div class="stat-value {color_class}">{value}</div>
+        <div class="stat-label">{label}</div>
+    </div>
+    """
+
+def render_flight_card(flight, flight_type='arrival'):
+    """Affiche une carte de vol de manière standardisée.
+
+    Args:
+        flight: Dictionnaire contenant les infos du vol
+        flight_type: 'arrival' ou 'departure'
+    """
+    status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
+
+    if flight_type == 'arrival':
+        color = "#22C55E"
+        origin = flight['origin'] if flight['origin'] != 'N/A' else '???'
+        route = f"{origin} vers BVA"
+    else:  # departure
+        color = "#F97316"
+        dest = flight['destination'] if flight['destination'] != 'N/A' else '???'
+        route = f"BVA vers {dest}"
+
+    return f"""
+    <div class="flight-card" style="border-left-color: {color};">
+        <div style="display: flex; justify-content: space-between;">
+            <strong style="color: {color};">{flight['callsign']}</strong>
+            <span style="color: #64748B; font-size: 0.8rem;">{status}</span>
+        </div>
+        <div style="font-size: 0.85rem; color: #94A3B8;">{route} • {flight['aircraft_type']}</div>
+    </div>
+    """
 
 # =============================================================================
 # En-tête
@@ -192,43 +229,23 @@ with tab1:
         })
         
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
             avg_temp = df['Temp Moy'].mean()
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value stat-blue">{avg_temp:.1f}°C</div>
-                <div class="stat-label">Température moyenne</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            st.markdown(render_stat_card(f"{avg_temp:.1f}°C", "Température moyenne", "stat-blue"), unsafe_allow_html=True)
+
         with col2:
             total_precip = df['Précip'].sum()
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value">{total_precip:.1f} mm</div>
-                <div class="stat-label">Précipitations totales</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            st.markdown(render_stat_card(f"{total_precip:.1f} mm", "Précipitations totales"), unsafe_allow_html=True)
+
         with col3:
             max_wind = df['Vent Max'].max()
             color = "stat-red" if max_wind > 50 else "stat-yellow" if max_wind > 35 else ""
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value {color}">{max_wind:.0f} km/h</div>
-                <div class="stat-label">Vent maximum</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            st.markdown(render_stat_card(f"{max_wind:.0f} km/h", "Vent maximum", color), unsafe_allow_html=True)
+
         with col4:
             windy_days = len(df[df['Vent Max'] > 40])
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value stat-yellow">{windy_days}</div>
-                <div class="stat-label">Jours vent fort (>40)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(render_stat_card(f"{windy_days}", "Jours vent fort (>40)", "stat-yellow"), unsafe_allow_html=True)
         
         st.markdown("")
         
@@ -315,39 +332,19 @@ with tab2:
         in_flight = len([f for f in flights if not f.get('on_ground', False)])
         
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value stat-blue">{len(flights)}</div>
-                <div class="stat-label">Vols dans la zone</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            st.markdown(render_stat_card(len(flights), "Vols dans la zone", "stat-blue"), unsafe_allow_html=True)
+
         with col2:
             total_bva = len(arrivals_bva) + len(departures_bva)
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value stat-green">{total_bva}</div>
-                <div class="stat-label">Vols BVA</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            st.markdown(render_stat_card(total_bva, "Vols BVA", "stat-green"), unsafe_allow_html=True)
+
         with col3:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value">{in_flight}</div>
-                <div class="stat-label">En vol</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
+            st.markdown(render_stat_card(in_flight, "En vol"), unsafe_allow_html=True)
+
         with col4:
-            st.markdown(f"""
-            <div class="stat-card">
-                <div class="stat-value stat-gray">{len(transit_flights)}</div>
-                <div class="stat-label">Transit</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(render_stat_card(len(transit_flights), "Transit", "stat-gray"), unsafe_allow_html=True)
         
         st.divider()
         
@@ -357,37 +354,15 @@ with tab2:
             st.markdown(f"#### Arrivées BVA ({len(arrivals_bva)})")
             if arrivals_bva:
                 for flight in arrivals_bva[:6]:
-                    status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
-                    origin = flight['origin'] if flight['origin'] != 'N/A' else '???'
-                    
-                    st.markdown(f"""
-                    <div class="flight-card" style="border-left-color: #22C55E;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <strong style="color: #22C55E;">{flight['callsign']}</strong>
-                            <span style="color: #64748B; font-size: 0.8rem;">{status}</span>
-                        </div>
-                        <div style="font-size: 0.85rem; color: #94A3B8;">{origin} vers BVA • {flight['aircraft_type']}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(render_flight_card(flight, 'arrival'), unsafe_allow_html=True)
             else:
                 st.caption("Aucune arrivée en cours")
-        
+
         with col2:
             st.markdown(f"#### Départs BVA ({len(departures_bva)})")
             if departures_bva:
                 for flight in departures_bva[:6]:
-                    status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
-                    dest = flight['destination'] if flight['destination'] != 'N/A' else '???'
-                    
-                    st.markdown(f"""
-                    <div class="flight-card" style="border-left-color: #F97316;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <strong style="color: #F97316;">{flight['callsign']}</strong>
-                            <span style="color: #64748B; font-size: 0.8rem;">{status}</span>
-                        </div>
-                        <div style="font-size: 0.85rem; color: #94A3B8;">BVA vers {dest} • {flight['aircraft_type']}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(render_flight_card(flight, 'departure'), unsafe_allow_html=True)
             else:
                 st.caption("Aucun départ en cours")
         
@@ -669,43 +644,23 @@ with tab4:
                 temp_trend = df_years['Temp Moy'].iloc[-1] - df_years['Temp Moy'].iloc[0]
                 
                 col1, col2, col3, col4 = st.columns(4)
-                
+
                 with col1:
                     color = "stat-red" if temp_trend > 0.5 else "stat-blue" if temp_trend < -0.5 else ""
                     sign = "+" if temp_trend > 0 else ""
-                    st.markdown(f"""
-                    <div class="stat-card">
-                        <div class="stat-value {color}">{sign}{temp_trend:.1f}°C</div>
-                        <div class="stat-label">Évolution température</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
+                    st.markdown(render_stat_card(f"{sign}{temp_trend:.1f}°C", "Évolution température", color), unsafe_allow_html=True)
+
                 with col2:
                     avg_wind_days = df_years['Jours Vent Fort'].mean()
-                    st.markdown(f"""
-                    <div class="stat-card">
-                        <div class="stat-value stat-yellow">{avg_wind_days:.0f}</div>
-                        <div class="stat-label">Moy. jours vent fort/an</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
+                    st.markdown(render_stat_card(f"{avg_wind_days:.0f}", "Moy. jours vent fort/an", "stat-yellow"), unsafe_allow_html=True)
+
                 with col3:
                     avg_fog = df_years['Jours Brouillard'].mean()
-                    st.markdown(f"""
-                    <div class="stat-card">
-                        <div class="stat-value">{avg_fog:.0f}</div>
-                        <div class="stat-label">Moy. jours brouillard/an</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
+                    st.markdown(render_stat_card(f"{avg_fog:.0f}", "Moy. jours brouillard/an"), unsafe_allow_html=True)
+
                 with col4:
                     avg_storm = df_years['Jours Orage'].mean()
-                    st.markdown(f"""
-                    <div class="stat-card">
-                        <div class="stat-value stat-orange">{avg_storm:.0f}</div>
-                        <div class="stat-label">Moy. jours orage/an</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(render_stat_card(f"{avg_storm:.0f}", "Moy. jours orage/an", "stat-orange"), unsafe_allow_html=True)
                 
                 st.markdown("")
                 
@@ -778,245 +733,6 @@ with tab4:
         else:
             st.warning("Impossible de charger les données long terme")
 
-# =============================================================================
-# Section Explicative du Code
-# =============================================================================
-st.divider()
-with st.expander("Comprendre le code de cette page"):
-    st.markdown("""
-    ### Architecture de la Page Analyse Historique (AnalyseHistorique.py)
-
-    Page la plus complexe de l'application, combinant **4 onglets d'analyse** :
-    évolution météo, trafic actuel, impact météo/aviation, et tendances climatiques multi-annuelles.
-
-    #### Structure en 4 Onglets (lignes 123-128)
-
-    ```python
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "Évolution Météo",        # Historique météo configurable
-        "Trafic Actuel",          # Snapshot des vols en cours
-        "Impact Météo/Aviation",  # Corrélations et scores
-        "Tendances Climatiques"   # Analyse multi-annuelle
-    ])
-    ```
-
-    #### Tab 1 : Évolution Météo (lignes 133-278)
-
-    **Sélection de Période Flexible**
-    ```python
-    period_choice = st.selectbox(
-        "Période d'analyse",
-        options=["7 jours", "14 jours", "30 jours", "90 jours", "Personnalisé"]
-    )
-
-    if period_choice == "Personnalisé":
-        start_date = st.date_input("Date début", ...)
-        end_date = st.date_input("Date fin", ...)
-        days = (end_date - start_date).days
-    ```
-    - **Date picker** : Sélection de dates avec contraintes
-    - **Validation** : Vérifie que fin > début, limite à 90 jours
-    - **Flexibilité** : Analyse sur mesure
-
-    **Graphiques Combinés**
-    ```python
-    # Température avec zone remplie entre min/max
-    fig_hist.add_trace(go.Scatter(..., fill='tonexty'))
-
-    # Vent avec seuil critique
-    fig_wind.add_hline(y=40, line_dash="dash", line_color="#EF4444")
-    ```
-
-    #### Tab 2 : Trafic Actuel (lignes 282-421)
-
-    **Fonction classify_flight()**
-    ```python
-    def classify_flight(flight):
-        if destination in ['BVA', 'LFOB']:
-            return 'arrival'
-        elif origin in ['BVA', 'LFOB']:
-            return 'departure'
-        else:
-            return 'transit'
-    ```
-    - Réutilisation de logique métier
-    - Classification en temps réel
-
-    **Graphique Compagnies**
-    ```python
-    df_airlines = pd.DataFrame(sorted_airlines, columns=['Compagnie', 'Vols'])
-
-    fig = px.bar(
-        df_airlines,
-        x='Compagnie', y='Vols',
-        color='Vols',
-        color_continuous_scale=[[0, '#1e3a5f'], [1, '#00D4FF']]
-    )
-    ```
-    - **Gradient continu** : Visualisation de la dominance
-    - **Top 10** : Affiche seulement les principales compagnies
-
-    #### Tab 3 : Impact Météo/Aviation (lignes 426-603)
-
-    **Méthodologie du Score**
-    ```python
-    with st.expander("Comment est calculé le score aviation ?"):
-        st.markdown(\"\"\"
-        Le score part de 100 et diminue selon :
-        - Vent > 50 km/h : -40 pts
-        - Vent 35-50 : -25 pts
-        - Rafales > 60 : -20 pts
-        - Précipitations > 20mm : -25 pts
-        - Brouillard/Orage/Neige : -30 à -35 pts
-        \"\"\")
-    ```
-    - **Transparence** : Algorithme explicité
-    - **Standards** : Basé sur normes ICAO/EUROCONTROL
-
-    **Analyse sur 30 Jours**
-    ```python
-    def calc_score(row):
-        score = 100
-        if row['Vent'] > 50: score -= 40
-        # ... autres pénalités
-        return max(0, score)
-
-    df_hist['Score'] = df_hist.apply(calc_score, axis=1)
-    df_hist['Impact'] = df_hist['Score'].apply(
-        lambda x: 'Favorable' if x >= 80
-                 else ('Modéré' if x >= 50 else 'Difficile')
-    )
-    ```
-    - **Calcul rétroactif** : Score calculé pour l'historique
-    - **Catégorisation** : Vert/Jaune/Rouge
-
-    **Scatter Plots de Corrélation**
-    ```python
-    fig1 = px.scatter(
-        df_hist,
-        x='Vent Max', y='Score',
-        color='Impact',
-        color_discrete_map={
-            'Favorable': '#22C55E',
-            'Modéré': '#EAB308',
-            'Difficile': '#EF4444'
-        }
-    )
-    ```
-    - **Nuage de points** : Visualisation de la relation
-    - **Couleur par catégorie** : Lecture intuitive
-
-    **Coefficient de Corrélation**
-    ```python
-    corr_vent = np.corrcoef(df_clean['Vent'], df_clean['Score'])[0, 1]
-    corr_precip = np.corrcoef(df_clean['Précip'], df_clean['Score'])[0, 1]
-    ```
-    - **Pearson** : Coefficient entre -1 (anticorrélation) et +1 (corrélation)
-    - Attendu : Valeur négative (plus de vent → score plus bas)
-
-    #### Tab 4 : Tendances Climatiques (lignes 607-779)
-
-    **Données Multi-Annuelles**
-    ```python
-    start_year = st.selectbox("Année de début",
-                             options=[2026, 2025, 2024, ..., 1990])
-    end_year = st.selectbox("Année de fin", ...)
-
-    long_term = get_long_term_historical_weather(
-        start_year=start_year,
-        end_year=end_year
-    )
-    ```
-    - **Archive OpenMeteo** : Données depuis 1940
-    - **Limite** : Max ~5-10 ans pour temps de chargement raisonnable
-
-    **Statistiques Annuelles**
-    ```python
-    df_years = pd.DataFrame([
-        {
-            'Année': int(year),
-            'Temp Moy': stats['avg_temp'],
-            'Vent Moy': stats['avg_wind'],
-            'Vent Max': stats['max_wind'],
-            'Jours Vent Fort': stats['extreme_wind_days'],
-            'Jours Pluie': stats['rainy_days'],
-            'Jours Brouillard': stats['fog_days'],
-            'Jours Orage': stats['storm_days']
-        }
-        for year, stats in sorted(yearly.items())
-    ])
-    ```
-    - **Agrégation annuelle** : Synthèse par année
-    - **Comptage phénomènes** : Nombre de jours problématiques
-
-    **Ligne de Tendance**
-    ```python
-    z = np.polyfit(df_years['Année'].values,
-                  df_years['Temp Moy'].values, 1)  # Degré 1 = droite
-    p = np.poly1d(z)  # Crée le polynôme
-
-    fig_temp.add_trace(go.Scatter(
-        x=df_years['Année'], y=p(df_years['Année'].values),
-        mode='lines',
-        line=dict(dash='dash'),
-        name='Tendance'
-    ))
-    ```
-    - **np.polyfit()** : Régression linéaire
-    - **Ligne pointillée** : Visualise la tendance long terme
-    - **Évolution température** : Indicateur du changement climatique
-
-    **Graphique Multi-Séries**
-    ```python
-    fig_extreme = go.Figure()
-    fig_extreme.add_trace(go.Scatter(..., name='Vent fort'))
-    fig_extreme.add_trace(go.Scatter(..., name="Jours d'orage"))
-    fig_extreme.add_trace(go.Scatter(..., name='Jours de brouillard'))
-    ```
-    - **3 courbes superposées** : Comparaison visuelle
-    - **Légende interactive** : Cliquer pour masquer/afficher
-
-    #### Points Techniques Avancés
-
-    **Gestion Session State**
-    ```python
-    if st.button("Analyser", type="primary"):
-        st.session_state['analyze_climate'] = True
-    ```
-    - **Évite rechargement intempestif** : Analyse à la demande
-    - **Optimisation** : Appels API coûteux
-
-    **Validation Dates**
-    ```python
-    if end_year < start_year:
-        st.error("L'année de fin doit être >= année de début")
-    ```
-    - **UX** : Feedback immédiat
-    - **Prévention erreurs** : Valide avant appel API
-
-    **Exception Handling**
-    ```python
-    try:
-        long_term = get_long_term_historical_weather(...)
-    except Exception as e:
-        st.error(f"Erreur : {e}")
-        long_term = None
-    ```
-    - **Robustesse** : Gère les échecs API
-    - **Message utilisateur** : Erreur claire
-
-    #### Améliorations Possibles
-
-    1. **Machine Learning** : Prédiction du trafic selon prévisions météo
-    2. **Comparaison aéroports** : BVA vs CDG vs ORY
-    3. **Export rapports** : PDF/Excel des analyses
-    4. **Alertes automatiques** : Email si tendance défavorable
-    5. **Analyse saisonnière** : Patterns printemps/été/automne/hiver
-    6. **Impact économique** : Estimation coûts des retards météo
-
-    *Cette page représente le cœur analytique de l'application,
-    permettant une compréhension approfondie des patterns météo-aviation.*
-    """)
 
 # =============================================================================
 # Footer
