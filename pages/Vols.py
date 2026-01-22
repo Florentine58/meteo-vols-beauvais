@@ -1,6 +1,9 @@
 """
 Page Vols — Trafic aérien autour de Paris-Beauvais
 Distinction claire entre vols BVA et vols en transit
+Style professionnel sobre
+
+Projet Mineure Numérique B2 — 2025
 """
 
 import streamlit as st
@@ -18,7 +21,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CSS Professionnel
+# CSS Professionnel Sobre
 # =============================================================================
 st.markdown("""
 <style>
@@ -136,7 +139,7 @@ def classify_flight(flight):
 # =============================================================================
 st.markdown("""
 <div class="page-header">
-    <h1>✈️ Trafic Aérien — Paris-Beauvais</h1>
+    <h1>Trafic Aérien — Paris-Beauvais</h1>
     <p>Surveillance des vols dans un rayon de 50 km autour de l'aéroport</p>
 </div>
 """, unsafe_allow_html=True)
@@ -144,17 +147,17 @@ st.markdown("""
 # Explication de la page
 st.markdown("""
 <div class="alert-box alert-info">
-    <b>💡 Comprendre cette page :</b><br>
+    <b>Comprendre cette page :</b><br>
     Cette page affiche <b>tous les avions</b> dans un rayon de 50 km autour de Beauvais, pas seulement les vols BVA.<br>
-    Les vols sont classés en 3 catégories : <span style="color:#22C55E">🟢 Arrivées BVA</span> | 
-    <span style="color:#F97316">🟠 Départs BVA</span> | <span style="color:#94A3B8">⚫ Transit</span> (avions de passage)
+    Les vols sont classés en 3 catégories : <span style="color:#22C55E">Arrivées BVA</span> | 
+    <span style="color:#F97316">Départs BVA</span> | <span style="color:#94A3B8">Transit</span> (avions de passage)
 </div>
 """, unsafe_allow_html=True)
 
 # Contrôles
 col1, col2 = st.columns([1, 5])
 with col1:
-    if st.button("🔄 Actualiser", type="primary", use_container_width=True):
+    if st.button("Actualiser", type="primary", use_container_width=True):
         st.rerun()
 
 st.divider()
@@ -253,7 +256,7 @@ if flights:
     
     # Arrivées BVA
     with col1:
-        st.markdown(f"#### 🟢 Arrivées BVA ({len(arrivals_bva)})")
+        st.markdown(f"#### Arrivées BVA ({len(arrivals_bva)})")
         
         if arrivals_bva:
             for flight in arrivals_bva[:8]:
@@ -267,7 +270,7 @@ if flights:
                         <span style="font-size: 0.75rem; color: #64748B;">{status}</span>
                     </div>
                     <div style="font-size: 0.85rem; color: #94A3B8; margin-top: 0.25rem;">
-                        {origin} → <b>BVA</b> • {flight['aircraft_type']}
+                        {origin} → <b>BVA</b> | {flight['aircraft_type']}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -279,7 +282,7 @@ if flights:
     
     # Départs BVA
     with col2:
-        st.markdown(f"#### 🟠 Départs BVA ({len(departures_bva)})")
+        st.markdown(f"#### Départs BVA ({len(departures_bva)})")
         
         if departures_bva:
             for flight in departures_bva[:8]:
@@ -293,7 +296,7 @@ if flights:
                         <span style="font-size: 0.75rem; color: #64748B;">{status}</span>
                     </div>
                     <div style="font-size: 0.85rem; color: #94A3B8; margin-top: 0.25rem;">
-                        <b>BVA</b> → {dest} • {flight['aircraft_type']}
+                        <b>BVA</b> → {dest} | {flight['aircraft_type']}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -305,7 +308,7 @@ if flights:
     
     # Transit
     with col3:
-        st.markdown(f"#### ⚫ Transit ({len(transit_flights)})")
+        st.markdown(f"#### Transit ({len(transit_flights)})")
         
         if transit_flights:
             for flight in transit_flights[:8]:
@@ -320,7 +323,7 @@ if flights:
                         <span style="font-size: 0.75rem; color: #64748B;">{status}</span>
                     </div>
                     <div style="font-size: 0.85rem; color: #64748B; margin-top: 0.25rem;">
-                        {origin} → {dest} • {flight['aircraft_type']}
+                        {origin} → {dest} | {flight['aircraft_type']}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -383,11 +386,11 @@ if flights:
     # =============================================================================
     st.markdown("### Tableau complet")
     
-    with st.expander("📋 Voir tous les vols"):
+    with st.expander("Voir tous les vols"):
         df = pd.DataFrame(flights)
         
         # Ajouter la catégorie lisible
-        category_map = {'arrival': '🟢 Arrivée BVA', 'departure': '🟠 Départ BVA', 'transit': '⚫ Transit'}
+        category_map = {'arrival': 'Arrivée BVA', 'departure': 'Départ BVA', 'transit': 'Transit'}
         df['Catégorie'] = df['category'].map(category_map)
         
         # Sélectionner les colonnes à afficher
@@ -398,7 +401,7 @@ if flights:
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
 else:
-    st.info("🔍 Aucun vol détecté dans la zone de 50 km autour de Beauvais. Cela peut arriver si le trafic est faible à cette heure.")
+    st.info("Aucun vol détecté dans la zone de 50 km autour de Beauvais. Cela peut arriver si le trafic est faible à cette heure.")
 
 # =============================================================================
 # Informations aéroport
@@ -410,7 +413,7 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown(f"**{airport['name']}**")
-    st.caption(f"IATA: {airport['code_iata']} • ICAO: {airport['code_icao']}")
+    st.caption(f"IATA: {airport['code_iata']} | ICAO: {airport['code_icao']}")
 
 with col2:
     st.markdown("**Localisation**")
@@ -419,7 +422,7 @@ with col2:
 
 with col3:
     st.markdown("**Compagnies principales**")
-    st.caption(" • ".join(airport['principales_compagnies']))
+    st.caption(" | ".join(airport['principales_compagnies']))
 
 # =============================================================================
 # Légende
@@ -437,7 +440,7 @@ st.markdown("""
     </div>
     <div class="legend-item">
         <div class="legend-dot" style="background: #64748B;"></div>
-        <b>Transit</b> — Avions passant dans la zone sans s'arrêter à BVA (ex: Paris-CDG ↔ Londres)
+        <b>Transit</b> — Avions passant dans la zone sans s'arrêter à BVA (ex: Paris-CDG vers Londres)
     </div>
 </div>
 """, unsafe_allow_html=True)
