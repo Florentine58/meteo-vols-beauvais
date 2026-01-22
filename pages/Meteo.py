@@ -1,19 +1,19 @@
 """
 Page Météo — Données météorologiques complètes de Beauvais
 Prévisions, historique et impact aviation
+Style professionnel sobre
+
+Projet Mineure Numérique B2 — 2025
 """
 
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.express as px
 import pandas as pd
 from datetime import datetime
 
-# Import direct depuis la racine du projet
 from api.weather import (
     get_current_weather, 
     get_hourly_forecast, 
-    get_7day_forecast,
     get_historical_weather,
     get_weather_code_description,
     get_aviation_conditions_forecast,
@@ -24,12 +24,12 @@ from api.weather import (
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Météo",
-    page_icon="🌤️",
+    page_icon="✈️",
     layout="wide"
 )
 
 # =============================================================================
-# CSS Professionnel
+# CSS Professionnel Sobre
 # =============================================================================
 st.markdown("""
 <style>
@@ -113,7 +113,7 @@ st.markdown("""
 # =============================================================================
 st.markdown("""
 <div class="page-header">
-    <h1>🌤️ Météo Beauvais</h1>
+    <h1>Météo Beauvais</h1>
     <p>Données météorologiques en temps réel et prévisions — Station de Beauvais-Tillé</p>
 </div>
 """, unsafe_allow_html=True)
@@ -122,7 +122,7 @@ col1, col2 = st.columns([4, 1])
 with col1:
     st.caption(f"Coordonnées : {BEAUVAIS_LAT}°N, {BEAUVAIS_LON}°E | Dernière mise à jour : {datetime.now().strftime('%H:%M')}")
 with col2:
-    if st.button("🔄 Actualiser", type="primary", use_container_width=True):
+    if st.button("Actualiser", type="primary", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
@@ -134,11 +134,10 @@ st.divider()
 with st.spinner("Chargement des données météo..."):
     weather = get_current_weather()
     hourly = get_hourly_forecast(days=1)
-    forecast_7d = get_7day_forecast()
     aviation_forecast = get_aviation_conditions_forecast()
 
 # =============================================================================
-# SECTION 1 : Météo actuelle (grand format)
+# SECTION 1 : Météo actuelle
 # =============================================================================
 if weather:
     col_main, col_details = st.columns([2, 3])
@@ -155,7 +154,6 @@ if weather:
         """, unsafe_allow_html=True)
     
     with col_details:
-        # 6 métriques détaillées
         c1, c2, c3 = st.columns(3)
         
         with c1:
@@ -190,41 +188,39 @@ if weather:
             """, unsafe_allow_html=True)
         
         st.markdown("")
-        
-        # Alertes aviation
-        st.markdown("**🛫 Impact Aviation**")
+        st.markdown("**Impact Aviation**")
         
         alerts = []
         if wind > 40:
-            alerts.append(("danger", f"⚠️ Vent fort ({wind} km/h) — Risque de retards/déroutements"))
+            alerts.append(("danger", f"Vent fort ({wind} km/h) — Risque de retards/déroutements"))
         elif wind > 25:
-            alerts.append(("warning", f"💨 Vent modéré ({wind} km/h) — Turbulences possibles"))
+            alerts.append(("warning", f"Vent modéré ({wind} km/h) — Turbulences possibles"))
         
         if humidity > 90:
-            alerts.append(("warning", f"🌫️ Humidité très élevée ({humidity}%) — Risque de brouillard"))
+            alerts.append(("warning", f"Humidité très élevée ({humidity}%) — Risque de brouillard"))
         
         if weather.get('weather_code', 0) in [45, 48]:
-            alerts.append(("danger", "🌫️ Brouillard détecté — Impact majeur sur les vols"))
+            alerts.append(("danger", "Brouillard détecté — Impact majeur sur les vols"))
         elif weather.get('weather_code', 0) in [95, 96, 99]:
-            alerts.append(("danger", "⛈️ Orage en cours — Opérations suspendues"))
+            alerts.append(("danger", "Orage en cours — Opérations suspendues"))
         elif weather.get('weather_code', 0) in [71, 73, 75]:
-            alerts.append(("danger", "❄️ Neige — Piste potentiellement impactée"))
+            alerts.append(("danger", "Neige — Piste potentiellement impactée"))
         
         if not alerts:
-            st.markdown('<div class="alert-box alert-success">✅ Conditions favorables pour l\'aviation</div>', unsafe_allow_html=True)
+            st.markdown('<div class="alert-box alert-success">Conditions favorables pour l\'aviation</div>', unsafe_allow_html=True)
         else:
             for level, msg in alerts:
                 st.markdown(f'<div class="alert-box alert-{level}">{msg}</div>', unsafe_allow_html=True)
 
 else:
-    st.error("❌ Impossible de récupérer les données météo actuelles.")
+    st.error("Impossible de récupérer les données météo actuelles.")
 
 st.divider()
 
 # =============================================================================
 # SECTION 2 : Prévisions 7 jours
 # =============================================================================
-st.markdown("### 📅 Prévisions 7 jours")
+st.markdown("### Prévisions 7 jours")
 
 if aviation_forecast:
     cols = st.columns(7)
@@ -234,7 +230,6 @@ if aviation_forecast:
             date_obj = datetime.strptime(day['date'], "%Y-%m-%d")
             icon, desc = get_weather_code_description(day['weather_code'])
             
-            # Couleur selon score aviation
             if day['score'] >= 80:
                 border_color = "#22C55E"
                 score_color = "#22C55E"
@@ -256,29 +251,28 @@ if aviation_forecast:
                     <span style="color: #64748B;"> / {day['temp_min']:.0f}°</span>
                 </div>
                 <div style="font-size: 0.75rem; color: #64748B;">
-                    💨 {day['wind_max']:.0f} km/h
+                    Vent {day['wind_max']:.0f} km/h
                 </div>
                 <div style="font-size: 0.75rem; color: #64748B;">
-                    🌧️ {day['precipitation']:.1f} mm
+                    Précip {day['precipitation']:.1f} mm
                 </div>
                 <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #2D3748;">
                     <span style="font-size: 0.8rem; font-weight: 600; color: {score_color};">
-                        ✈️ {day['score']}/100
+                        Score {day['score']}/100
                     </span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
     
-    # Légende
     st.markdown("")
-    st.caption("**Score Aviation :** 🟢 80-100 Optimal | 🟡 50-79 Vigilance | 🔴 0-49 Difficile")
+    st.caption("**Score Aviation :** 80-100 Optimal | 50-79 Vigilance | 0-49 Difficile")
 
 st.divider()
 
 # =============================================================================
 # SECTION 3 : Évolution sur 24h
 # =============================================================================
-st.markdown("### 📈 Évolution sur 24 heures")
+st.markdown("### Évolution sur 24 heures")
 
 if hourly:
     hours = hourly['time'][:24]
@@ -287,8 +281,7 @@ if hourly:
     precips = hourly['precipitation'][:24]
     hours_fmt = [h.split('T')[1][:5] for h in hours]
     
-    # Onglets pour les graphiques
-    tab1, tab2, tab3 = st.tabs(["🌡️ Température", "💨 Vent", "🌧️ Précipitations"])
+    tab1, tab2, tab3 = st.tabs(["Température", "Vent", "Précipitations"])
     
     with tab1:
         fig_temp = go.Figure()
@@ -311,7 +304,6 @@ if hourly:
         )
         st.plotly_chart(fig_temp, use_container_width=True)
         
-        # Stats
         c1, c2, c3 = st.columns(3)
         c1.metric("Minimum", f"{min(temps):.1f}°C")
         c2.metric("Maximum", f"{max(temps):.1f}°C")
@@ -328,7 +320,6 @@ if hourly:
             fillcolor='rgba(139, 92, 246, 0.1)',
             hovertemplate='%{x}<br>%{y} km/h<extra></extra>'
         ))
-        # Seuils
         fig_wind.add_hline(y=25, line_dash="dash", line_color="#EAB308", annotation_text="Turbulences (25)")
         fig_wind.add_hline(y=40, line_dash="dash", line_color="#EF4444", annotation_text="Critique (40)")
         
@@ -342,7 +333,6 @@ if hourly:
         )
         st.plotly_chart(fig_wind, use_container_width=True)
         
-        # Stats
         c1, c2, c3 = st.columns(3)
         c1.metric("Minimum", f"{min(winds):.0f} km/h")
         c2.metric("Maximum", f"{max(winds):.0f} km/h")
@@ -366,7 +356,6 @@ if hourly:
         )
         st.plotly_chart(fig_precip, use_container_width=True)
         
-        # Stats
         c1, c2, c3 = st.columns(3)
         total_precip = sum(precips)
         c1.metric("Total", f"{total_precip:.1f} mm")
@@ -379,34 +368,34 @@ st.divider()
 # =============================================================================
 # SECTION 4 : Seuils Aviation
 # =============================================================================
-st.markdown("### ✈️ Seuils Météo pour l'Aviation")
+st.markdown("### Seuils Météo pour l'Aviation")
 
 st.markdown("""
 <div class="alert-box alert-info">
-    <b>💡 Ces seuils sont utilisés pour calculer le score aviation</b><br>
-    Ils sont basés sur les recommandations ICAO et les pratiques des compagnies low-cost opérant à Beauvais.
+    Ces seuils sont utilisés pour calculer le score aviation. Ils sont basés sur les recommandations ICAO 
+    et les pratiques des compagnies low-cost opérant à Beauvais.
 </div>
 """, unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("#### 💨 Vent")
+    st.markdown("#### Vent")
     st.markdown("""
     | Seuil | Valeur | Impact |
     |-------|--------|--------|
-    | 🟢 Favorable | < 25 km/h | Opérations normales |
-    | 🟡 Modéré | 25-40 km/h | Turbulences possibles, vigilance |
-    | 🔴 Fort | > 40 km/h | Risque de retards/déroutements |
-    | ⛔ Critique | > 50 km/h | Opérations suspendues |
+    | Favorable | < 25 km/h | Opérations normales |
+    | Modéré | 25-40 km/h | Turbulences possibles |
+    | Fort | > 40 km/h | Risque de retards |
+    | Critique | > 50 km/h | Opérations suspendues |
     
     **Rafales :** Seuil critique à **60 km/h** pour les atterrissages.
     
-    **Vent de travers :** Limite généralement à **35 kts (65 km/h)** pour les Boeing 737 / Airbus A320.
+    **Vent de travers :** Limite à **35 kts (65 km/h)** pour les B737/A320.
     """)
 
 with col2:
-    st.markdown("#### 🌫️ Visibilité & Phénomènes")
+    st.markdown("#### Visibilité & Phénomènes")
     st.markdown("""
     | Phénomène | Impact sur le score |
     |-----------|---------------------|
@@ -416,14 +405,12 @@ with col2:
     | Pluie forte (>20mm) | **-25 points** |
     | Pluie modérée (10-20mm) | **-15 points** |
     
-    **Humidité :** 
-    - \> 90% : Risque de brouillard
-    - \> 95% : Formation de givre possible
+    **Humidité :** > 90% = risque de brouillard
     
-    **Catégories ILS (atterrissage) :**
+    **Catégories ILS :**
     - CAT I : Visibilité > 800m
     - CAT II : Visibilité > 350m  
-    - CAT III : Visibilité < 200m (équipement spécial)
+    - CAT III : Visibilité < 200m
     """)
 
 st.divider()
@@ -431,7 +418,7 @@ st.divider()
 # =============================================================================
 # SECTION 5 : Historique récent
 # =============================================================================
-st.markdown("### 📊 Historique récent")
+st.markdown("### Historique récent")
 
 with st.spinner("Chargement de l'historique..."):
     history = get_historical_weather(days=7)
@@ -478,8 +465,7 @@ if history:
         )
         st.plotly_chart(fig_wind_hist, use_container_width=True)
     
-    # Tableau
-    with st.expander("📋 Voir les données détaillées"):
+    with st.expander("Voir les données détaillées"):
         st.dataframe(df, use_container_width=True, hide_index=True)
 
 # =============================================================================

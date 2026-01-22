@@ -1,6 +1,6 @@
 """
 Page Analyse Historique — Corrélation Météo & Aviation
-Corrections : sélecteur dates, trafic temps réel, tendances multi-années
+Style sobre professionnel
 """
 
 import streamlit as st
@@ -28,7 +28,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CSS Professionnel
+# CSS Professionnel Sobre
 # =============================================================================
 st.markdown("""
 <style>
@@ -112,7 +112,7 @@ def classify_flight(flight):
 # =============================================================================
 st.markdown("""
 <div class="page-header">
-    <h1>📊 Analyse Historique & Corrélations</h1>
+    <h1>Analyse Historique & Corrélations</h1>
     <p>Étude de l'impact météorologique sur les opérations aériennes</p>
 </div>
 """, unsafe_allow_html=True)
@@ -121,14 +121,14 @@ st.markdown("""
 # Onglets
 # =============================================================================
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🌡️ Évolution Météo",
-    "✈️ Trafic Actuel", 
-    "📈 Impact Météo/Aviation",
-    "🌍 Tendances Climatiques"
+    "Évolution Météo",
+    "Trafic Actuel", 
+    "Impact Météo/Aviation",
+    "Tendances Climatiques"
 ])
 
 # =============================================================================
-# TAB 1 : Évolution Météo (CORRIGÉ - sélecteur de dates flexible)
+# TAB 1 : Évolution Météo
 # =============================================================================
 with tab1:
     st.markdown("### Évolution météorologique à Beauvais")
@@ -142,12 +142,10 @@ with tab1:
             index=2
         )
     
-    # Calcul de la période
     if period_choice == "Personnalisé":
         with col2:
-            # Date de fin = hier (données disponibles)
             max_date = datetime.now().date() - timedelta(days=1)
-            min_date = max_date - timedelta(days=730)  # Max 2 an en arrière
+            min_date = max_date - timedelta(days=730)
             
             col_start, col_end = st.columns(2)
             with col_start:
@@ -165,7 +163,6 @@ with tab1:
                     max_value=max_date
                 )
             
-            # Calculer le nombre de jours
             days = (end_date - start_date).days
             if days <= 0:
                 st.error("La date de fin doit être après la date de début")
@@ -177,10 +174,9 @@ with tab1:
         days = int(period_choice.split()[0])
     
     with col3:
-        if st.button("🔄 Actualiser", key="refresh_meteo"):
+        if st.button("Actualiser", key="refresh_meteo"):
             st.rerun()
     
-    # Chargement des données
     with st.spinner("Chargement des données météo..."):
         history = get_historical_weather(days=days)
     
@@ -195,7 +191,6 @@ with tab1:
             'Rafales': history['wind_gusts_10m_max']
         })
         
-        # Stats rapides
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -231,13 +226,12 @@ with tab1:
             st.markdown(f"""
             <div class="stat-card">
                 <div class="stat-value stat-yellow">{windy_days}</div>
-                <div class="stat-label">Jours vent fort (&gt;40)</div>
+                <div class="stat-label">Jours vent fort (>40)</div>
             </div>
             """, unsafe_allow_html=True)
         
         st.markdown("")
         
-        # Graphique températures
         fig_temp = go.Figure()
         fig_temp.add_trace(go.Scatter(x=df['Date'], y=df['Temp Max'], mode='lines', name='Max', line=dict(color='#EF4444', width=2)))
         fig_temp.add_trace(go.Scatter(x=df['Date'], y=df['Temp Min'], mode='lines', name='Min', line=dict(color='#3B82F6', width=2), fill='tonexty', fillcolor='rgba(59, 130, 246, 0.1)'))
@@ -251,7 +245,6 @@ with tab1:
         )
         st.plotly_chart(fig_temp, use_container_width=True)
         
-        # Vent et précip
         col1, col2 = st.columns(2)
         
         with col1:
@@ -279,35 +272,33 @@ with tab1:
             )
             st.plotly_chart(fig_precip, use_container_width=True)
         
-        with st.expander("📋 Voir les données brutes"):
+        with st.expander("Voir les données brutes"):
             st.dataframe(df, use_container_width=True, hide_index=True)
     else:
         st.error("Impossible de charger les données météo historiques")
 
 # =============================================================================
-# TAB 2 : Trafic Actuel (CORRIGÉ - utilise FlightRadar24)
+# TAB 2 : Trafic Actuel
 # =============================================================================
 with tab2:
     st.markdown("### Trafic aérien en temps réel")
     
     st.markdown("""
     <div class="alert-box alert-info">
-        <b>💡 Note :</b> Cette page utilise FlightRadar24 (gratuit) pour afficher les vols actuels. 
+        <b>Note :</b> Cette page utilise FlightRadar24 (gratuit) pour afficher les vols actuels. 
         Les données de retards précis nécessiteraient une API premium (AeroDataBox, FlightAware).
     </div>
     """, unsafe_allow_html=True)
     
     col1, col2 = st.columns([3, 1])
     with col2:
-        if st.button("🔄 Actualiser", key="refresh_traffic", type="primary"):
+        if st.button("Actualiser", key="refresh_traffic", type="primary"):
             st.rerun()
     
-    # Chargement des vols
     with st.spinner("Chargement des vols..."):
         flights = get_flights_in_area()
     
     if flights:
-        # Classifier les vols
         arrivals_bva = []
         departures_bva = []
         transit_flights = []
@@ -323,7 +314,6 @@ with tab2:
         
         in_flight = len([f for f in flights if not f.get('on_ground', False)])
         
-        # Métriques
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
@@ -361,11 +351,10 @@ with tab2:
         
         st.divider()
         
-        # Liste des vols BVA
         col1, col2 = st.columns(2)
         
         with col1:
-            st.markdown(f"#### 🟢 Arrivées BVA ({len(arrivals_bva)})")
+            st.markdown(f"#### Arrivées BVA ({len(arrivals_bva)})")
             if arrivals_bva:
                 for flight in arrivals_bva[:6]:
                     status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
@@ -377,14 +366,14 @@ with tab2:
                             <strong style="color: #22C55E;">{flight['callsign']}</strong>
                             <span style="color: #64748B; font-size: 0.8rem;">{status}</span>
                         </div>
-                        <div style="font-size: 0.85rem; color: #94A3B8;">{origin} → BVA • {flight['aircraft_type']}</div>
+                        <div style="font-size: 0.85rem; color: #94A3B8;">{origin} vers BVA • {flight['aircraft_type']}</div>
                     </div>
                     """, unsafe_allow_html=True)
             else:
                 st.caption("Aucune arrivée en cours")
         
         with col2:
-            st.markdown(f"#### 🟠 Départs BVA ({len(departures_bva)})")
+            st.markdown(f"#### Départs BVA ({len(departures_bva)})")
             if departures_bva:
                 for flight in departures_bva[:6]:
                     status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
@@ -396,7 +385,7 @@ with tab2:
                             <strong style="color: #F97316;">{flight['callsign']}</strong>
                             <span style="color: #64748B; font-size: 0.8rem;">{status}</span>
                         </div>
-                        <div style="font-size: 0.85rem; color: #94A3B8;">BVA → {dest} • {flight['aircraft_type']}</div>
+                        <div style="font-size: 0.85rem; color: #94A3B8;">BVA vers {dest} • {flight['aircraft_type']}</div>
                     </div>
                     """, unsafe_allow_html=True)
             else:
@@ -404,7 +393,6 @@ with tab2:
         
         st.divider()
         
-        # Statistiques compagnies
         st.markdown("#### Compagnies aériennes dans la zone")
         
         airlines_stats = get_airlines_stats(flights)
@@ -430,24 +418,23 @@ with tab2:
             )
             st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("🔍 Aucun vol détecté dans la zone actuellement")
+        st.info("Aucun vol détecté dans la zone actuellement")
 
 # =============================================================================
-# TAB 3 : Impact Météo/Aviation (RENOMMÉ - pas de données retards)
+# TAB 3 : Impact Météo/Aviation
 # =============================================================================
 with tab3:
     st.markdown("### Impact Météo sur les Opérations Aériennes")
     
     st.markdown("""
     <div class="alert-box alert-info">
-        <b>💡 Méthodologie :</b> Cette analyse évalue l'impact potentiel des conditions météo sur les opérations 
+        <b>Méthodologie :</b> Cette analyse évalue l'impact potentiel des conditions météo sur les opérations 
         en calculant un <b>score aviation (0-100)</b> basé sur le vent, les précipitations et les phénomènes météo.
         <br><small>Note : Les retards réels nécessiteraient une API premium non disponible.</small>
     </div>
     """, unsafe_allow_html=True)
     
-    # Explication du score
-    with st.expander("📖 Comment est calculé le score aviation ?"):
+    with st.expander("Comment est calculé le score aviation ?"):
         st.markdown("""
         <div class="methodology-box">
             <h4 style="color: #00D4FF; margin-top: 0;">Algorithme du Score Aviation</h4>
@@ -469,13 +456,12 @@ with tab3:
             | **Neige** | Codes 71-77 | -30 pts |
             
             **Interprétation :**
-            - 🟢 **80-100** : Conditions favorables
-            - 🟡 **50-79** : Vigilance recommandée
-            - 🔴 **0-49** : Conditions difficiles
+            - **80-100** : Conditions favorables
+            - **50-79** : Vigilance recommandée
+            - **0-49** : Conditions difficiles
         </div>
         """, unsafe_allow_html=True)
     
-    # Données actuelles
     weather = get_current_weather()
     forecast = get_aviation_conditions_forecast()
     
@@ -507,19 +493,18 @@ with tab3:
             
             st.markdown("")
             
-            # Alertes
             wind = weather['wind_speed_10m']
             humidity = weather['relative_humidity_2m']
             
             if wind > 40:
-                st.markdown(f'<div class="alert-box alert-danger">💨 Vent fort : {wind} km/h — Impact majeur</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="alert-box alert-danger">Vent fort : {wind} km/h — Impact majeur</div>', unsafe_allow_html=True)
             elif wind > 25:
-                st.markdown(f'<div class="alert-box alert-warning">💨 Vent modéré : {wind} km/h — Turbulences possibles</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="alert-box alert-warning">Vent modéré : {wind} km/h — Turbulences possibles</div>', unsafe_allow_html=True)
             else:
-                st.markdown(f'<div class="alert-box alert-success">💨 Vent faible : {wind} km/h — Favorable</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="alert-box alert-success">Vent faible : {wind} km/h — Favorable</div>', unsafe_allow_html=True)
             
             if humidity > 90:
-                st.markdown(f'<div class="alert-box alert-warning">💧 Humidité : {humidity}% — Risque de brouillard</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="alert-box alert-warning">Humidité : {humidity}% — Risque de brouillard</div>', unsafe_allow_html=True)
         
         with col2:
             st.markdown("#### Prévisions 7 jours")
@@ -528,7 +513,6 @@ with tab3:
             
             fig = go.Figure()
             
-            # Zones colorées
             fig.add_hrect(y0=80, y1=100, fillcolor="#22C55E", opacity=0.1, line_width=0)
             fig.add_hrect(y0=50, y1=80, fillcolor="#EAB308", opacity=0.1, line_width=0)
             fig.add_hrect(y0=0, y1=50, fillcolor="#EF4444", opacity=0.1, line_width=0)
@@ -554,13 +538,12 @@ with tab3:
             
             alerts_count = sum(1 for d in forecast if d['score'] < 80)
             if alerts_count > 0:
-                st.markdown(f'<div class="alert-box alert-warning">⚠️ {alerts_count} jour(s) avec vigilance cette semaine</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="alert-box alert-warning">{alerts_count} jour(s) avec vigilance cette semaine</div>', unsafe_allow_html=True)
             else:
-                st.markdown('<div class="alert-box alert-success">✅ Semaine favorable</div>', unsafe_allow_html=True)
+                st.markdown('<div class="alert-box alert-success">Semaine favorable</div>', unsafe_allow_html=True)
         
         st.divider()
         
-        # Analyse historique 30 jours
         st.markdown("#### Analyse des 30 derniers jours")
         
         history = get_historical_weather(days=30)
@@ -571,7 +554,6 @@ with tab3:
                 'Précip': history['precipitation_sum']
             })
             
-            # Calculer score pour chaque jour
             def calc_score(row):
                 score = 100
                 if row['Vent'] and row['Vent'] > 50: score -= 40
@@ -604,7 +586,6 @@ with tab3:
                                   yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B', title='Score'))
                 st.plotly_chart(fig2, use_container_width=True)
             
-            # Corrélations
             df_clean = df_hist.dropna()
             if len(df_clean) > 5:
                 corr_vent = np.corrcoef(df_clean['Vent'], df_clean['Score'])[0, 1]
@@ -617,49 +598,46 @@ with tab3:
                 **Résumé des 30 derniers jours :**
                 - **{favorable} jours** favorables (score ≥ 80)
                 - **{difficult} jours** difficiles (score < 50)
-                - Corrélation Vent ↔ Score : **{corr_vent:.2f}** (négative = plus de vent = score plus bas)
-                - Corrélation Précip ↔ Score : **{corr_precip:.2f}**
+                - Corrélation Vent / Score : **{corr_vent:.2f}** (négative = plus de vent = score plus bas)
+                - Corrélation Précip / Score : **{corr_precip:.2f}**
                 """)
 
 # =============================================================================
-# TAB 4 : Tendances Climatiques (CORRIGÉ - plus d'années)
+# TAB 4 : Tendances Climatiques
 # =============================================================================
 with tab4:
     st.markdown("### Évolution climatique multi-annuelle")
     
     st.markdown("""
     <div class="alert-box alert-info">
-        <b>💡 Source :</b> OpenMeteo Archive fournit des données météo depuis 1940.
+        <b>Source :</b> OpenMeteo Archive fournit des données météo depuis 1940.
         Cette analyse permet d'identifier les tendances à long terme.
     </div>
     """, unsafe_allow_html=True)
     
-    # Sélection période (CORRIGÉ - plus de choix)
     col1, col2, col3 = st.columns([1, 1, 2])
     
     with col1:
         start_year = st.selectbox(
             "Année de début",
             options=[2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2017, 2016, 2015, 2010, 2005, 2000, 1995, 1990],
-            index=5,  # 2019 par défaut
+            index=5,
             key="start_year"
         )
     
     with col2:
-        # Options pour l'année de fin (toujours >= année de début)
-        end_options = [y for y in [2026,2025,2024, 2023, 2022, 2021, 2020] if y >= start_year]
+        end_options = [y for y in [2026, 2025, 2024, 2023, 2022, 2021, 2020] if y >= start_year]
         end_year = st.selectbox(
             "Année de fin",
             options=end_options,
-            index=0,  # 2024 par défaut
+            index=0,
             key="end_year"
         )
     
     with col3:
-        if st.button("📊 Analyser", type="primary"):
+        if st.button("Analyser", type="primary"):
             st.session_state['analyze_climate'] = True
     
-    # Vérification
     if end_year < start_year:
         st.error("L'année de fin doit être supérieure ou égale à l'année de début")
     else:
@@ -673,7 +651,6 @@ with tab4:
         if long_term and 'yearly_stats' in long_term:
             yearly = long_term['yearly_stats']
             
-            # DataFrame
             df_years = pd.DataFrame([
                 {
                     'Année': int(year),
@@ -689,7 +666,6 @@ with tab4:
             ])
             
             if len(df_years) >= 2:
-                # Métriques tendances
                 temp_trend = df_years['Temp Moy'].iloc[-1] - df_years['Temp Moy'].iloc[0]
                 
                 col1, col2, col3, col4 = st.columns(4)
@@ -733,7 +709,6 @@ with tab4:
                 
                 st.markdown("")
                 
-                # Graphique évolution température
                 fig_temp = go.Figure()
                 fig_temp.add_trace(go.Scatter(
                     x=df_years['Année'], y=df_years['Temp Moy'],
@@ -743,7 +718,6 @@ with tab4:
                     name='Température moyenne'
                 ))
                 
-                # Ligne de tendance
                 z = np.polyfit(df_years['Année'].values, df_years['Temp Moy'].values, 1)
                 p = np.poly1d(z)
                 fig_temp.add_trace(go.Scatter(
@@ -763,7 +737,6 @@ with tab4:
                 )
                 st.plotly_chart(fig_temp, use_container_width=True)
                 
-                # Graphique phénomènes
                 fig_extreme = go.Figure()
                 fig_extreme.add_trace(go.Scatter(x=df_years['Année'], y=df_years['Jours Vent Fort'], mode='lines+markers', name='Vent fort (>40 km/h)', line=dict(color='#8B5CF6', width=2)))
                 fig_extreme.add_trace(go.Scatter(x=df_years['Année'], y=df_years['Jours Orage'], mode='lines+markers', name="Jours d'orage", line=dict(color='#EF4444', width=2)))
@@ -784,14 +757,11 @@ with tab4:
                         font=dict(color='#94A3B8')
                     )
                 )
-
                 st.plotly_chart(fig_extreme, use_container_width=True)
                 
-                # Données brutes
-                with st.expander("📋 Voir les données annuelles"):
+                with st.expander("Voir les données annuelles"):
                     st.dataframe(df_years, use_container_width=True, hide_index=True)
                 
-                # Conclusions
                 st.markdown("### Conclusions")
                 st.markdown(f"""
                 **Analyse sur {end_year - start_year + 1} ans ({start_year} - {end_year}) :**
@@ -813,6 +783,6 @@ with tab4:
 # =============================================================================
 st.markdown("""
 <div class="footer">
-    Données : OpenMeteo API & FlightRadar24 • Projet Mineure Numérique B2 — 2025
+    Données : OpenMeteo API & FlightRadar24 — Projet Mineure Numérique B2 — 2025
 </div>
 """, unsafe_allow_html=True)

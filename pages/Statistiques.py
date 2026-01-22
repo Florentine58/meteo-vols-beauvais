@@ -22,7 +22,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CSS Professionnel
+# CSS Professionnel Sobre
 # =============================================================================
 st.markdown("""
 <style>
@@ -436,7 +436,6 @@ if weather and flights:
         else:
             st.markdown('<div class="alert-box alert-danger">Aucun trafic — Peut être lié aux conditions météo</div>', unsafe_allow_html=True)
         
-        # Interprétation
         st.markdown("")
         if wind_speed > 30 and len(flights) < 5:
             st.caption("Le vent fort pourrait expliquer le faible trafic.")

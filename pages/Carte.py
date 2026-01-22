@@ -21,7 +21,7 @@ st.set_page_config(
 )
 
 # =============================================================================
-# CSS Professionnel
+# CSS Professionnel Sobre
 # =============================================================================
 st.markdown("""
 <style>
@@ -108,12 +108,6 @@ st.markdown("""
         border-radius: 50%;
     }
     
-    .legend-line {
-        width: 20px;
-        height: 3px;
-        border-radius: 2px;
-    }
-    
     .aqi-indicator {
         padding: 0.5rem 1rem;
         border-radius: 8px;
@@ -149,7 +143,7 @@ st.markdown("""
 # =============================================================================
 st.markdown("""
 <div class="page-header">
-    <h1>🗺️ Carte Interactive — Paris-Beauvais (BVA)</h1>
+    <h1>Carte Interactive — Paris-Beauvais (BVA)</h1>
     <p>Surveillance en temps réel du trafic aérien et de la qualité de l'air</p>
 </div>
 """, unsafe_allow_html=True)
@@ -157,13 +151,13 @@ st.markdown("""
 # Explication de la page
 st.markdown("""
 <div class="info-box">
-    <b>💡 À quoi sert cette carte ?</b><br><br>
+    <b>À quoi sert cette carte ?</b><br><br>
     Cette carte affiche en temps réel :<br>
     • <b>Tous les avions</b> dans un rayon de 50 km autour de Beauvais (pas seulement ceux de BVA)<br>
     • Les <b>zones de qualité de l'air</b> colorées selon l'AQI européen<br>
     • L'<b>impact environnemental estimé</b> du trafic aérien<br>
     • Les <b>trajectoires</b> des vols vers/depuis Beauvais<br><br>
-    <b>🎯 Objectif :</b> Visualiser la corrélation entre le trafic aérien et la qualité de l'air locale.
+    <b>Objectif :</b> Visualiser la corrélation entre le trafic aérien et la qualité de l'air locale.
 </div>
 """, unsafe_allow_html=True)
 
@@ -173,7 +167,7 @@ st.markdown("""
 col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
 
 with col1:
-    if st.button("🔄 Actualiser", type="primary", use_container_width=True):
+    if st.button("Actualiser", type="primary", use_container_width=True):
         if 'carte_figee' in st.session_state:
             del st.session_state['carte_figee']
         st.rerun()
@@ -183,11 +177,11 @@ with col2:
         st.session_state['carte_figee'] = False
     
     if st.session_state['carte_figee']:
-        if st.button("▶️ Reprendre", type="secondary", use_container_width=True):
+        if st.button("Reprendre", type="secondary", use_container_width=True):
             st.session_state['carte_figee'] = False
             st.rerun()
     else:
-        if st.button("⏸️ Figer", type="secondary", use_container_width=True):
+        if st.button("Figer", type="secondary", use_container_width=True):
             st.session_state['carte_figee'] = True
             st.rerun()
 
@@ -197,9 +191,9 @@ with col3:
 
 with col4:
     if st.session_state.get('carte_figee', False):
-        st.markdown('<span class="status-paused">● Carte figée</span>', unsafe_allow_html=True)
+        st.markdown('<span class="status-paused">Carte figée</span>', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="status-live">● Mode temps réel</span>', unsafe_allow_html=True)
+        st.markdown('<span class="status-live">Mode temps réel</span>', unsafe_allow_html=True)
 
 st.divider()
 
@@ -239,19 +233,19 @@ impact = calculate_aviation_air_impact(len(flights), wind_speed)
 if air_quality:
     aqi = air_quality.get('european_aqi', 50)
     if aqi <= 20:
-        aqi_color = '#22C55E'  # Vert
+        aqi_color = '#22C55E'
         aqi_opacity = 0.15
     elif aqi <= 40:
-        aqi_color = '#84CC16'  # Vert clair
+        aqi_color = '#84CC16'
         aqi_opacity = 0.15
     elif aqi <= 60:
-        aqi_color = '#EAB308'  # Jaune
+        aqi_color = '#EAB308'
         aqi_opacity = 0.2
     elif aqi <= 80:
-        aqi_color = '#F97316'  # Orange
+        aqi_color = '#F97316'
         aqi_opacity = 0.25
     else:
-        aqi_color = '#EF4444'  # Rouge
+        aqi_color = '#EF4444'
         aqi_opacity = 0.3
 else:
     aqi = 50
@@ -344,11 +338,8 @@ with col_map:
         tiles='CartoDB dark_matter'
     )
     
-    # =========================================================================
-    # ZONE DE QUALITÉ DE L'AIR (cercle coloré)
-    # =========================================================================
+    # Zone de qualité de l'air
     if show_aqi_zones:
-        # Zone principale 20km - couleur selon AQI
         folium.Circle(
             location=[BVA_LAT, BVA_LON],
             radius=20000,
@@ -359,7 +350,6 @@ with col_map:
             popup=f"Zone qualité air<br>AQI: {aqi} ({air_quality.get('aqi_level', 'N/A') if air_quality else 'N/A'})"
         ).add_to(m)
         
-        # Zone impact direct 5km (plus dense)
         folium.Circle(
             location=[BVA_LAT, BVA_LON],
             radius=5000,
@@ -370,7 +360,7 @@ with col_map:
             popup=f"Zone impact direct<br>Score: {impact['impact_score']}/100"
         ).add_to(m)
     
-    # Zone de surveillance (50 km) - contour pointillé
+    # Zone de surveillance (50 km)
     folium.Circle(
         location=[BVA_LAT, BVA_LON],
         radius=50000,
@@ -385,7 +375,7 @@ with col_map:
     airport_popup = f"""
     <div style="font-family: Arial; width: 200px; color: #333;">
         <h4 style="margin: 0 0 8px 0; color: #1e3a5f; border-bottom: 2px solid #00D4FF; padding-bottom: 5px;">
-            ✈️ {airport['name']}
+            {airport['name']}
         </h4>
         <p style="margin: 4px 0;"><b>IATA:</b> {airport['code_iata']}</p>
         <p style="margin: 4px 0;"><b>ICAO:</b> {airport['code_icao']}</p>
@@ -398,15 +388,15 @@ with col_map:
     folium.Marker(
         location=[BVA_LAT, BVA_LON],
         popup=folium.Popup(airport_popup, max_width=220),
-        tooltip="🛫 Aéroport Paris-Beauvais (BVA)",
+        tooltip="Aéroport Paris-Beauvais (BVA)",
         icon=folium.Icon(color='red', icon='plane', prefix='fa')
     ).add_to(m)
     
-    # Marqueur station météo (centre-ville Beauvais)
+    # Marqueur station météo
     if weather:
         weather_popup = f"""
         <div style="font-family: Arial; width: 180px; color: #333;">
-            <h4 style="margin: 0 0 8px 0; color: #1e3a5f;">🌤️ Météo Beauvais</h4>
+            <h4 style="margin: 0 0 8px 0; color: #1e3a5f;">Météo Beauvais</h4>
             <p style="margin: 4px 0;"><b>Température:</b> {weather['temperature_2m']}°C</p>
             <p style="margin: 4px 0;"><b>Humidité:</b> {weather['relative_humidity_2m']}%</p>
             <p style="margin: 4px 0;"><b>Vent:</b> {weather['wind_speed_10m']} km/h</p>
@@ -416,7 +406,7 @@ with col_map:
         folium.Marker(
             location=[BEAUVAIS_LAT, BEAUVAIS_LON],
             popup=folium.Popup(weather_popup, max_width=200),
-            tooltip="🌤️ Station météo Beauvais",
+            tooltip="Station météo Beauvais",
             icon=folium.Icon(color='blue', icon='cloud', prefix='fa')
         ).add_to(m)
     
@@ -427,7 +417,6 @@ with col_map:
         origin = flight['origin'] if flight['origin'] != 'N/A' else '---'
         dest = flight['destination'] if flight['destination'] != 'N/A' else '---'
         
-        # Déterminer si lié à BVA
         is_bva_arrival = dest in ['BVA', 'LFOB']
         is_bva_departure = origin in ['BVA', 'LFOB']
         
@@ -444,11 +433,10 @@ with col_map:
             color = 'lightblue'
             category = "Transit"
         
-        # Popup avion
         flight_popup = f"""
         <div style="font-family: Arial; width: 200px; color: #333;">
             <h4 style="margin: 0 0 8px 0; color: #1e3a5f; border-bottom: 2px solid #00D4FF; padding-bottom: 5px;">
-                ✈️ {flight['callsign']}
+                {flight['callsign']}
             </h4>
             <p style="margin: 4px 0;"><b>Catégorie:</b> {category}</p>
             <p style="margin: 4px 0;"><b>Route:</b> {origin} → {dest}</p>
@@ -460,7 +448,6 @@ with col_map:
         </div>
         """
         
-        # Marqueur avion
         folium.Marker(
             location=[flight['latitude'], flight['longitude']],
             popup=folium.Popup(flight_popup, max_width=220),
@@ -480,7 +467,7 @@ with col_map:
                     weight=2,
                     opacity=0.7,
                     dash_array='5, 5',
-                    tooltip=f"{flight['callsign']} → BVA"
+                    tooltip=f"{flight['callsign']} vers BVA"
                 ).add_to(m)
             elif is_bva_departure:
                 folium.PolyLine(
@@ -489,14 +476,12 @@ with col_map:
                     weight=2,
                     opacity=0.7,
                     dash_array='5, 5',
-                    tooltip=f"BVA → {flight['callsign']}"
+                    tooltip=f"BVA vers {flight['callsign']}"
                 ).add_to(m)
     
-    # Afficher la carte
     st_folium(m, width=None, height=550, use_container_width=True, returned_objects=[])
 
 with col_info:
-    # Légende
     st.markdown("#### Légende")
     st.markdown(f"""
     <div class="legend-box">
@@ -530,7 +515,6 @@ with col_info:
     
     st.markdown("")
     
-    # Zones de qualité de l'air
     st.markdown("#### Zones colorées")
     st.markdown(f"""
     <div class="legend-box">
@@ -541,10 +525,7 @@ with col_info:
             <span style="color: #FFF; font-weight: 600;">AQI: {aqi}</span>
         </div>
         <div style="font-size: 0.75rem; color: #64748B; margin-top: 0.5rem;">
-            🟢 0-40 Bon<br>
-            🟡 41-60 Modéré<br>
-            🟠 61-80 Médiocre<br>
-            🔴 81+ Mauvais
+            0-40 Bon | 41-60 Modéré | 61-80 Médiocre | 81+ Mauvais
         </div>
         <hr style="border: none; border-top: 1px solid #2D3748; margin: 0.75rem 0;">
         <div style="font-size: 0.8rem; color: #94A3B8; margin-bottom: 0.5rem;">
@@ -558,23 +539,26 @@ with col_info:
     
     st.markdown("")
     
-    # Détails pollution
     st.markdown("#### Polluants")
     if air_quality:
         pm25 = air_quality.get('pm2_5', 0)
         pm10 = air_quality.get('pm10', 0)
         no2 = air_quality.get('nitrogen_dioxide', 0)
         
+        pm25_status = "Élevé" if pm25 > 15 else "Normal"
+        pm10_status = "Élevé" if pm10 > 45 else "Normal"
+        no2_status = "Élevé" if no2 > 25 else "Normal"
+        
         st.markdown(f"""
         <div class="legend-box">
             <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem;">
-                <b>PM2.5:</b> {pm25:.1f} µg/m³ {'⚠️' if pm25 > 15 else '✅'}
+                <b>PM2.5:</b> {pm25:.1f} µg/m³ <span style="color: {'#EF4444' if pm25 > 15 else '#22C55E'};">({pm25_status})</span>
             </div>
             <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 0.5rem;">
-                <b>PM10:</b> {pm10:.1f} µg/m³ {'⚠️' if pm10 > 45 else '✅'}
+                <b>PM10:</b> {pm10:.1f} µg/m³ <span style="color: {'#EF4444' if pm10 > 45 else '#22C55E'};">({pm10_status})</span>
             </div>
             <div style="font-size: 0.85rem; color: #94A3B8;">
-                <b>NO₂:</b> {no2:.1f} µg/m³ {'⚠️' if no2 > 25 else '✅'}
+                <b>NO₂:</b> {no2:.1f} µg/m³ <span style="color: {'#EF4444' if no2 > 25 else '#22C55E'};">({no2_status})</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -589,7 +573,6 @@ st.divider()
 st.markdown("#### Détail des vols détectés")
 
 if flights:
-    # Séparer par catégorie
     arrivals = [f for f in flights if f['destination'] in ['BVA', 'LFOB']]
     departures = [f for f in flights if f['origin'] in ['BVA', 'LFOB']]
     transit = [f for f in flights if f not in arrivals and f not in departures]
@@ -597,14 +580,16 @@ if flights:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown(f"**🛬 Arrivées BVA ({len(arrivals)})**")
+        st.markdown(f"**Arrivées BVA ({len(arrivals)})**")
         if arrivals:
             for f in arrivals[:5]:
                 status = "Au sol" if f.get('on_ground') else f"{f['altitude']} ft"
+                origin = f['origin'] if f['origin'] != 'N/A' else '???'
+                
                 st.markdown(f"""
                 <div class="flight-item" style="border-left-color: #22C55E;">
                     <strong style="color: #22C55E;">{f['callsign']}</strong>
-                    <span style="color: #64748B;"> depuis {f['origin']}</span><br>
+                    <span style="color: #64748B;"> depuis {origin}</span><br>
                     <span style="font-size: 0.8rem; color: #94A3B8;">{f['aircraft_type']} • {status}</span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -612,14 +597,16 @@ if flights:
             st.caption("Aucune arrivée en cours")
     
     with col2:
-        st.markdown(f"**🛫 Départs BVA ({len(departures)})**")
+        st.markdown(f"**Départs BVA ({len(departures)})**")
         if departures:
             for f in departures[:5]:
                 status = "Au sol" if f.get('on_ground') else f"{f['altitude']} ft"
+                dest = f['destination'] if f['destination'] != 'N/A' else '???'
+                
                 st.markdown(f"""
                 <div class="flight-item" style="border-left-color: #F97316;">
                     <strong style="color: #F97316;">{f['callsign']}</strong>
-                    <span style="color: #64748B;"> vers {f['destination']}</span><br>
+                    <span style="color: #64748B;"> vers {dest}</span><br>
                     <span style="font-size: 0.8rem; color: #94A3B8;">{f['aircraft_type']} • {status}</span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -627,16 +614,17 @@ if flights:
             st.caption("Aucun départ en cours")
     
     with col3:
-        st.markdown(f"**✈️ Transit ({len(transit)})**")
+        st.markdown(f"**Transit ({len(transit)})**")
         if transit:
             for f in transit[:5]:
                 status = "Au sol" if f.get('on_ground') else f"{f['altitude']} ft"
                 origin = f['origin'] if f['origin'] != 'N/A' else '?'
                 dest = f['destination'] if f['destination'] != 'N/A' else '?'
+                
                 st.markdown(f"""
                 <div class="flight-item" style="border-left-color: #64748B;">
                     <strong style="color: #94A3B8;">{f['callsign']}</strong>
-                    <span style="color: #64748B;"> {origin}→{dest}</span><br>
+                    <span style="color: #64748B;"> {origin} vers {dest}</span><br>
                     <span style="font-size: 0.8rem; color: #94A3B8;">{f['aircraft_type']} • {status}</span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -645,19 +633,17 @@ if flights:
         else:
             st.caption("Aucun transit")
     
-    # Tableau complet
-    with st.expander("📋 Voir tous les vols (tableau)"):
+    with st.expander("Voir tous les vols (tableau)"):
         import pandas as pd
         df = pd.DataFrame(flights)
         
-        # Ajouter catégorie
         def get_category(row):
             if row['destination'] in ['BVA', 'LFOB']:
-                return '🛬 Arrivée BVA'
+                return 'Arrivée BVA'
             elif row['origin'] in ['BVA', 'LFOB']:
-                return '🛫 Départ BVA'
+                return 'Départ BVA'
             else:
-                return '✈️ Transit'
+                return 'Transit'
         
         df['Catégorie'] = df.apply(get_category, axis=1)
         cols_to_show = ['Catégorie', 'callsign', 'airline_icao', 'aircraft_type', 'origin', 'destination', 'altitude', 'ground_speed']
@@ -666,14 +652,14 @@ if flights:
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
 else:
-    st.info("🔍 Aucun vol détecté dans la zone de surveillance (50 km autour de BVA)")
+    st.info("Aucun vol détecté dans la zone de surveillance (50 km autour de BVA)")
 
 # =============================================================================
 # Footer
 # =============================================================================
 st.markdown(f"""
 <div class="footer">
-    Carte : OpenStreetMap / CartoDB Dark Matter • Données : FlightRadar24 & OpenMeteo<br>
+    Carte : OpenStreetMap / CartoDB Dark Matter — Données : FlightRadar24 & OpenMeteo<br>
     Zone de surveillance : 50 km autour de Paris-Beauvais (BVA) | Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M')}
 </div>
 """, unsafe_allow_html=True)
