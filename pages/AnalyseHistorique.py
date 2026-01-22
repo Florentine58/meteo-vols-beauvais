@@ -782,14 +782,14 @@ with tab4:
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture de la Page Analyse Historique (AnalyseHistorique.py)
 
     Page la plus complexe de l'application, combinant **4 onglets d'analyse** :
     évolution météo, trafic actuel, impact météo/aviation, et tendances climatiques multi-annuelles.
 
-    #### 📦 Structure en 4 Onglets (lignes 123-128)
+    #### Structure en 4 Onglets (lignes 123-128)
 
     ```python
     tab1, tab2, tab3, tab4 = st.tabs([
@@ -800,7 +800,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     ])
     ```
 
-    #### 🌦️ Tab 1 : Évolution Météo (lignes 133-278)
+    #### Tab 1 : Évolution Météo (lignes 133-278)
 
     **Sélection de Période Flexible**
     ```python
@@ -827,7 +827,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     fig_wind.add_hline(y=40, line_dash="dash", line_color="#EF4444")
     ```
 
-    #### ✈️ Tab 2 : Trafic Actuel (lignes 282-421)
+    #### Tab 2 : Trafic Actuel (lignes 282-421)
 
     **Fonction classify_flight()**
     ```python
@@ -856,7 +856,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Gradient continu** : Visualisation de la dominance
     - **Top 10** : Affiche seulement les principales compagnies
 
-    #### 🎯 Tab 3 : Impact Météo/Aviation (lignes 426-603)
+    #### Tab 3 : Impact Météo/Aviation (lignes 426-603)
 
     **Méthodologie du Score**
     ```python
@@ -914,7 +914,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Pearson** : Coefficient entre -1 (anticorrélation) et +1 (corrélation)
     - Attendu : Valeur négative (plus de vent → score plus bas)
 
-    #### 🌍 Tab 4 : Tendances Climatiques (lignes 607-779)
+    #### Tab 4 : Tendances Climatiques (lignes 607-779)
 
     **Données Multi-Annuelles**
     ```python
@@ -976,7 +976,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **3 courbes superposées** : Comparaison visuelle
     - **Légende interactive** : Cliquer pour masquer/afficher
 
-    #### 🔧 Points Techniques Avancés
+    #### Points Techniques Avancés
 
     **Gestion Session State**
     ```python
@@ -1005,7 +1005,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Robustesse** : Gère les échecs API
     - **Message utilisateur** : Erreur claire
 
-    #### 🚀 Améliorations Possibles
+    #### Améliorations Possibles
 
     1. **Machine Learning** : Prédiction du trafic selon prévisions météo
     2. **Comparaison aéroports** : BVA vs CDG vs ORY

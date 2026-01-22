@@ -472,14 +472,14 @@ if history:
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture de la Page Météo (Meteo.py)
 
     Cette page fournit une **analyse météorologique complète** de Paris-Beauvais avec focus sur l'impact
     sur l'aviation. Elle combine données en temps réel, prévisions et historique.
 
-    #### 📦 Structure du code
+    #### Structure du code
 
     **1. Imports et Configuration (lignes 1-29)**
     ```python
@@ -494,7 +494,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - Import des fonctions météo du module API personnalisé
     - Plotly pour les visualisations interactives
 
-    #### 🌤️ Section 1 : Météo Actuelle (lignes 140-217)
+    #### Section 1 : Météo Actuelle (lignes 140-217)
 
     **Affichage Principal**
     ```python
@@ -535,7 +535,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Système d'alertes** basé sur les seuils aéronautiques
     - **Classification** : success / warning / danger
 
-    #### 📅 Section 2 : Prévisions 7 Jours (lignes 220-269)
+    #### Section 2 : Prévisions 7 Jours (lignes 220-269)
 
     **Grille Compacte**
     ```python
@@ -552,7 +552,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Couleurs conditionnelles** : Vert/Jaune/Rouge selon le score
     - **Données compactes** : Temp max/min, vent, précipitations, score
 
-    #### 📊 Section 3 : Évolution 24h (lignes 273-365)
+    #### Section 3 : Évolution 24h (lignes 273-365)
 
     **Onglets (Tabs)**
     ```python
@@ -584,7 +584,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Lignes de référence** : Visualisation des seuils critiques
     - **Annotations** : Labels explicatifs sur les seuils
 
-    #### 📏 Section 4 : Seuils Aviation (lignes 368-414)
+    #### Section 4 : Seuils Aviation (lignes 368-414)
 
     **Tableau des Limites Opérationnelles**
     ```python
@@ -600,7 +600,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Spécificités B737/A320** : Avions couramment utilisés à Beauvais
     - **Catégories ILS** : Instrument Landing System (atterrissage par mauvaise visibilité)
 
-    #### 📈 Section 5 : Historique (lignes 417-469)
+    #### Section 5 : Historique (lignes 417-469)
 
     **Graphiques Comparatifs**
     ```python
@@ -621,7 +621,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Courbe remplie** : Zone entre min et max colorée
     - **DataFrame** : Affichage tabulaire avec `st.dataframe()`
 
-    #### 🔧 Points Techniques
+    #### Points Techniques
 
     **Formatage des Heures**
     ```python
@@ -640,7 +640,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Conversion degrés → points cardinaux**
     - 360° divisé en 8 secteurs de 45°
 
-    #### 📊 API OpenMeteo
+    #### API OpenMeteo
 
     **Points de Terminaison Utilisés**
     | Endpoint | Données | Fréquence |
@@ -649,7 +649,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     | `/forecast` | Prévisions 7j | 4 fois/jour |
     | `/historical` | Archive | Journalier depuis 1940 |
 
-    #### 🚀 Améliorations Possibles
+    #### Améliorations Possibles
 
     1. **Comparaison annuelle** : Comparer avec le même jour l'année précédente
     2. **Alertes personnalisées** : Email si conditions critiques prévues

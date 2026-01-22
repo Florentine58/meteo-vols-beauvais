@@ -576,14 +576,14 @@ with tab3:
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture de la Page Historique (Historique.py)
 
     Cette page combine **prévisions météo**, **analyse historique** et **corrélations**
     pour évaluer l'impact des conditions météorologiques sur l'aviation.
 
-    #### 📦 Structure en Onglets (Tabs)
+    #### Structure en Onglets (Tabs)
 
     **Organisation (lignes 185-186)**
     ```python
@@ -596,7 +596,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **3 onglets distincts** pour différentes analyses
     - Navigation fluide entre les vues
 
-    #### 📅 Tab 1 : Prévisions 7 Jours (lignes 190-306)
+    #### Tab 1 : Prévisions 7 Jours (lignes 190-306)
 
     **Système d'Alertes**
     ```python
@@ -623,7 +623,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **add_hrect()** : Ajoute des rectangles horizontaux (zones de référence)
     - **Visualisation rapide** : Voir d'un coup d'œil les jours problématiques
 
-    #### 📈 Tab 2 : Historique Météo (lignes 310-418)
+    #### Tab 2 : Historique Météo (lignes 310-418)
 
     **Sélecteur de Période**
     ```python
@@ -654,7 +654,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **tonexty** : Remplit l'espace entre cette courbe et la précédente (Temp Max)
     - Visualise l'amplitude thermique quotidienne
 
-    #### 🔬 Tab 3 : Analyse Corrélation (lignes 422-573)
+    #### Tab 3 : Analyse Corrélation (lignes 422-573)
 
     **Algorithme de Calcul du Score**
     ```python
@@ -713,7 +713,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **[0, 1]** : Extrait le coefficient de corrélation (entre -1 et 1)
     - Valeur négative attendue : plus de vent → score plus bas
 
-    #### 🎯 Points Techniques
+    #### Points Techniques
 
     **Gestion des Valeurs Nulles**
     ```python
@@ -736,7 +736,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Ternaire imbriqué** : if-else condensé
     - Crée une nouvelle colonne catégorielle
 
-    #### 📊 Métriques Statistiques
+    #### Métriques Statistiques
 
     **Calculs de Synthèse**
     ```python
@@ -747,7 +747,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Opérateur &** : ET logique pour combiner conditions
     - **len()** : Compte le nombre de lignes satisfaisant la condition
 
-    #### 🚀 Améliorations Possibles
+    #### Améliorations Possibles
 
     1. **Tendances saisonnières** : Analyser les patterns par mois/saison
     2. **Prédiction** : Modèle ML pour prédire le score selon prévisions météo

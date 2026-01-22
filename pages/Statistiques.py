@@ -464,14 +464,14 @@ with st.expander("Voir le tableau des vols"):
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture de la Page Statistiques (Statistiques.py)
 
     Cette page effectue une **analyse statistique du trafic aérien** et établit des corrélations
     avec les conditions météorologiques. Elle utilise des visualisations Plotly avancées.
 
-    #### 📦 Structure du code
+    #### Structure du code
 
     **1. Imports Spécialisés (lignes 1-15)**
     ```python
@@ -483,7 +483,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Plotly Graph Objects** : Contrôle fin des graphiques
     - **Pandas** : Traitement et analyse de données
 
-    #### 📊 Section 1 : Vue d'Ensemble (lignes 163-208)
+    #### Section 1 : Vue d'Ensemble (lignes 163-208)
 
     **Métriques Principales**
     - Nombre total de vols détectés dans la zone 50 km
@@ -491,7 +491,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - Température actuelle
     - Affichage avec cartes stylisées en HTML
 
-    #### 🏢 Section 2 : Statistiques Compagnies (lignes 211-266)
+    #### Section 2 : Statistiques Compagnies (lignes 211-266)
 
     **Fonction get_airlines_stats()**
     ```python
@@ -533,7 +533,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Répartition visuelle** du trafic par compagnie
     - **Blues_r** : Palette de bleus inversée (plus foncé = plus important)
 
-    #### ✈️ Section 3 : Types d'Avions (lignes 269-305)
+    #### Section 3 : Types d'Avions (lignes 269-305)
 
     **Distribution des Types**
     ```python
@@ -557,7 +557,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     | E190 | Embraer 190 | Embraer |
     | AT76 | ATR 72-600 | ATR |
 
-    #### 📈 Section 4 : Altitudes et Vitesses (lignes 308-368)
+    #### Section 4 : Altitudes et Vitesses (lignes 308-368)
 
     **Histogrammes Plotly**
     ```python
@@ -581,7 +581,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - Conversion ft → m : `altitude_m = altitude_ft * 0.3048`
     - Conversion kts → km/h : `vitesse_kmh = vitesse_kts * 1.852`
 
-    #### 🌦️ Section 5 : Corrélation Météo/Trafic (lignes 371-446)
+    #### Section 5 : Corrélation Météo/Trafic (lignes 371-446)
 
     **Algorithme de Scoring**
     ```python
@@ -621,7 +621,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - Hypothèse : conditions difficiles → moins de vols
     - **Limitation** : Les données en temps réel ne permettent pas de voir les annulations
 
-    #### 🔧 Points Techniques
+    #### Points Techniques
 
     **Pandas List Comprehension**
     ```python
@@ -648,7 +648,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Grille Y** : Aide à la lecture des valeurs
     - **Pas de grille X** : Plus épuré visuellement
 
-    #### 📊 Données Affichées
+    #### Données Affichées
 
     **Tableau DataFrame**
     ```python
@@ -660,7 +660,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Renommage** : Noms lisibles en français
     - **hide_index** : Masquer l'index Pandas
 
-    #### 🚀 Améliorations Possibles
+    #### Améliorations Possibles
 
     1. **Statistiques temporelles** : Évolution du trafic sur la journée/semaine
     2. **Comparaison historique** : Comparer avec le même jour l'année précédente
