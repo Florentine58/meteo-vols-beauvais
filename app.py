@@ -796,14 +796,14 @@ with col3:
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture du Dashboard Principal (app.py)
 
     Ce fichier constitue la **page d'accueil** de l'application BVA Monitor. Il intègre toutes les données
     essentielles sur un seul écran pour une vision globale rapide.
 
-    #### 📦 Structure du code
+    #### Structure du code
 
     **1. Configuration et Imports (lignes 1-23)**
     ```python
@@ -833,7 +833,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - Appels aux différentes APIs en parallèle
     - Cache Streamlit pour optimiser les performances
 
-    #### 🔧 Sections Principales
+    #### Sections Principales
 
     **Section 1 : Métriques Principales (lignes 308-340)**
     - Affichage des valeurs clés : température, vent, humidité, nombre de vols
@@ -859,7 +859,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - 4 graphiques : Température, Vent, Précipitations, Conditions actuelles
     - Données horaires sur 24h
 
-    #### 🎯 Points Techniques Importants
+    #### Points Techniques Importants
 
     **Cache et Performance**
     ```python
@@ -889,7 +889,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     ```
     - Classes CSS appliquées dynamiquement selon les valeurs
 
-    #### 📊 Sources de Données
+    #### Sources de Données
 
     | API | Données | Fréquence |
     |-----|---------|-----------|
@@ -897,7 +897,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     | **FlightRadar24** | Positions avions | 30s |
     | **Calculé** | Score aviation, impact | À la demande |
 
-    #### 🚀 Optimisations Possibles
+    #### Optimisations Possibles
 
     1. **WebSockets** pour les vols en temps réel (actualisation auto)
     2. **Base de données** pour historiser les scores aviation

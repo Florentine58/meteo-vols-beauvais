@@ -449,14 +449,14 @@ st.markdown("""
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture de la Page Vols (Vols.py)
 
     Cette page affiche le **trafic aérien détaillé** autour de Paris-Beauvais avec une
     classification claire : arrivées BVA, départs BVA, et vols en transit.
 
-    #### 📦 Fonction de Classification (lignes 119-134)
+    #### Fonction de Classification (lignes 119-134)
 
     **classify_flight() - Logique Métier**
     ```python
@@ -481,7 +481,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     | IATA | BVA | Code 3 lettres (billets, bagages) |
     | ICAO | LFOB | Code 4 lettres (ATC, plans de vol) |
 
-    #### 📊 Métriques Principales (lignes 195-245)
+    #### Métriques Principales (lignes 195-245)
 
     **Classification Automatique**
     ```python
@@ -507,7 +507,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **List comprehension avec filtre**
     - **get('on_ground', False)** : Valeur par défaut si clé absente
 
-    #### 🎨 Affichage des Vols (lignes 250-335)
+    #### Affichage des Vols (lignes 250-335)
 
     **3 Colonnes Égales**
     ```python
@@ -534,7 +534,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - Évite de surcharger l'interface
     - Indique qu'il y a plus de données
 
-    #### 📈 Statistiques (lignes 340-381)
+    #### Statistiques (lignes 340-381)
 
     **Tri par Fréquence**
     ```python
@@ -562,7 +562,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Calcul dynamique** du pourcentage
     - **:.0f** : Format sans décimale
 
-    #### 🗂️ Tableau Complet (lignes 387-401)
+    #### Tableau Complet (lignes 387-401)
 
     **DataFrame Pandas**
     ```python
@@ -595,7 +595,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Noms lisibles** en français
     - **Unités explicites** : (ft), (kts)
 
-    #### 🔧 Points Techniques
+    #### Points Techniques
 
     **Gestion des Valeurs Manquantes**
     ```python
@@ -614,7 +614,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Multiple classes** : Classe de base + classe spécifique
     - **Bordure colorée** via `border-left-color` en CSS
 
-    #### 📊 Légende (lignes 430-446)
+    #### Légende (lignes 430-446)
 
     **Box Explicative**
     ```python
@@ -631,7 +631,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Pastilles colorées** pour la légende
     - **Explications détaillées** de chaque catégorie
 
-    #### 🚀 Améliorations Possibles
+    #### Améliorations Possibles
 
     1. **Filtrage** : Filtrer par compagnie, type d'avion, altitude
     2. **Tri** : Trier par altitude, vitesse, heure d'arrivée

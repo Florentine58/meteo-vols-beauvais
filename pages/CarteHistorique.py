@@ -849,14 +849,14 @@ La vraie trajectoire suit :
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture de la Page Carte Historique (CarteHistorique.py)
 
     Page la plus technique de l'application, affichant les **trajectoires réelles des vols**
     via OpenSky Network et établissant des corrélations avec les conditions météorologiques.
 
-    #### 🔐 Test de Connexion OpenSky (lignes 134-157)
+    #### Test de Connexion OpenSky (lignes 134-157)
 
     **Authentification**
     ```python
@@ -883,7 +883,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Compte gratuit** : ~400 requêtes/jour
     - **Sans compte** : ~100 requêtes/jour, pas de trajectoires
 
-    #### 🗺️ Construction de la Carte (lignes 374-527)
+    #### Construction de la Carte (lignes 374-527)
 
     **Initialisation Folium**
     ```python
@@ -916,7 +916,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Mapping date → score** : Associe chaque vol à la météo du jour
     - **Fonction get_track_color()** : Détermine la couleur selon le mode
 
-    #### ✈️ Trajectoires Réelles (lignes 426-461)
+    #### Trajectoires Réelles (lignes 426-461)
 
     **Données OpenSky**
     ```python
@@ -947,7 +947,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     }
     ```
 
-    #### 📍 Trajectoires Estimées (lignes 464-518)
+    #### Trajectoires Estimées (lignes 464-518)
 
     **Algorithme d'Estimation**
     ```python
@@ -979,7 +979,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Interpolation linéaire** : Ligne droite entre A et B
     - **Limitations** : Ne suit pas les couloirs aériens réels (SID/STAR)
 
-    #### 🎨 Modes de Coloration (lignes 295-323)
+    #### Modes de Coloration (lignes 295-323)
 
     **Fonction get_track_color()**
     ```python
@@ -1006,7 +1006,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **3 modes** : type (arrivée/départ), weather (météo), time (heure)
     - **Sélecteur** : `st.selectbox("Coloration", options=[...])`
 
-    #### 📊 Analyse Météo (lignes 606-660)
+    #### Analyse Météo (lignes 606-660)
 
     **Calcul des Scores Météo**
     ```python
@@ -1041,7 +1041,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Lignes horizontales** : Seuils de référence
     - **Annotations** : Labels explicatifs
 
-    #### 🔧 Fonctions Utilitaires
+    #### Fonctions Utilitaires
 
     **safe_waypoint_coords()**
     ```python
@@ -1068,7 +1068,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Priorité ICAO** : Préfère code ICAO (4 lettres)
     - **Fallback IATA** : Sinon code IATA (3 lettres)
 
-    #### 💾 Optimisations Performance
+    #### Optimisations Performance
 
     **Cache Streamlit**
     ```python
@@ -1091,7 +1091,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Économise crédits OpenSky** : Limite les appels
     - **Performance** : Moins de données = affichage plus rapide
 
-    #### 📋 Tab Méthodologie (lignes 664-846)
+    #### Tab Méthodologie (lignes 664-846)
 
     **Documentation Complète**
     - Explication des sources (FlightRadar24 vs OpenSky)
@@ -1113,7 +1113,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **Visualisation ASCII** : Compréhension intuitive
     - **Transparence** : Limites clairement indiquées
 
-    #### 🚀 Améliorations Possibles
+    #### Améliorations Possibles
 
     1. **Clustering trajectoires** : Identifier les routes standards (SID/STAR)
     2. **Animation** : Rejouer les trajectoires avec timeline

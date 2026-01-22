@@ -658,14 +658,14 @@ else:
 # Section Explicative du Code
 # =============================================================================
 st.divider()
-with st.expander("📘 Comprendre le code de cette page"):
+with st.expander("Comprendre le code de cette page"):
     st.markdown("""
     ### Architecture de la Page Carte (Carte.py)
 
     Cette page affiche une **carte interactive** avec tous les avions dans un rayon de 50 km autour de Beauvais,
     ainsi que les zones de qualité de l'air et les trajectoires estimées.
 
-    #### 📦 Structure du code
+    #### Structure du code
 
     **1. Imports et Configuration (lignes 1-21)**
     ```python
@@ -684,7 +684,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **État Streamlit** : Gestion de l'état figé/temps réel de la carte
     - **Session state** : Permet de conserver l'état entre les reruns
 
-    #### 🗺️ Construction de la Carte
+    #### Construction de la Carte
 
     **1. Initialisation de la Carte (lignes 335-339)**
     ```python
@@ -753,7 +753,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - **PolyLine** : Lignes entre la position actuelle et l'aéroport
     - Différenciation arrivée (vert) / départ (orange)
 
-    #### 🎯 Fonctionnalités Clés
+    #### Fonctionnalités Clés
 
     **1. Mode Figé/Temps Réel**
     ```python
@@ -781,7 +781,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - Échelle de couleurs progressive selon l'indice AQI
     - Opacité variable pour la lisibilité
 
-    #### 📊 Panneau Latéral (col_info)
+    #### Panneau Latéral (col_info)
 
     **Légendes et Informations (lignes 484-566)**
     - **Légende des couleurs** : Explicitation des codes couleurs
@@ -797,7 +797,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     | **Plotly** | Graphique donut trafic |
     | **Pandas** | Manipulation données vols |
 
-    #### 🎨 Personnalisation Folium
+    #### Personnalisation Folium
 
     **Popups HTML Personnalisés**
     ```python
@@ -812,7 +812,7 @@ with st.expander("📘 Comprendre le code de cette page"):
     - HTML/CSS embarqué dans les popups
     - Design cohérent avec le reste de l'application
 
-    #### 🚀 Optimisations Possibles
+    #### Optimisations Possibles
 
     1. **Clustering** : Regrouper les marqueurs proches (Folium MarkerCluster)
     2. **Heatmap** : Carte de chaleur du trafic aérien
