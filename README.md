@@ -1,8 +1,8 @@
-# ✈️ BVA Monitor — Météo & Vols Beauvais
+# BVA Monitor — Météo & Vols Beauvais
 
 Projet réalisé dans le cadre de la **Mineure Numérique B2** — Surveillance météo, trafic aérien et impact environnemental à Beauvais.
 
-## 🎯 Description
+## Description
 
 Application web interactive combinant :
 - **Données météorologiques** de Beauvais (via OpenMeteo API)
@@ -12,26 +12,26 @@ Application web interactive combinant :
 
 L'objectif est de visualiser la **corrélation entre les conditions météo et l'activité aérienne**, ainsi que l'**impact environnemental** de l'aéroport.
 
-## ✨ Fonctionnalités
+## Fonctionnalités
 
-### 🗺️ Carte Interactive
+### Carte Interactive
 - Visualisation temps réel des avions autour de Beauvais
 - **Trajectoires** des vols (origines et destinations)
 - Données météo en overlay
 - Qualité de l'air en temps réel
 
-### 📊 Analyses
+###  Analyses
 - Score aviation (impact météo sur les opérations)
 - Prévisions 7 jours avec alertes
 - Corrélation météo / trafic
 - Tendances climatiques multi-annuelles
 
-### 🌿 Impact Environnemental
+### Impact Environnemental
 - Qualité de l'air (PM2.5, PM10, NO₂, O₃)
 - Estimation des émissions (CO₂, NOx, particules)
 - European Air Quality Index (AQI)
 
-## 🛠️ Technologies
+## Technologies
 
 | Technologie | Usage |
 |-------------|-------|
@@ -43,7 +43,7 @@ L'objectif est de visualiser la **corrélation entre les conditions météo et l
 | Folium | Cartes interactives |
 | Plotly | Graphiques |
 
-## 📦 Installation
+## Installation
 
 ```bash
 # Cloner le projet
@@ -61,20 +61,20 @@ cp .env.example .env
 streamlit run app.py
 ```
 
-## ⚙️ Configuration API
+## Configuration API
 
 ### APIs Gratuites (sans configuration)
-- ✅ **OpenMeteo Weather** — Météo actuelle, prévisions, historique
-- ✅ **OpenMeteo Air Quality** — Qualité de l'air, polluants
-- ✅ **FlightRadar24** — Vols temps réel
+- **OpenMeteo Weather** — Météo actuelle, prévisions, historique
+- **OpenMeteo Air Quality** — Qualité de l'air, polluants
+- **FlightRadar24** — Vols temps réel
 
 ### APIs Optionnelles (nécessitent un compte)
-- 🔑 **OpenSky Network** — Trajectoires détaillées des avions
+- **OpenSky Network** — Trajectoires détaillées des avions
   - Crée un compte sur [opensky-network.org](https://opensky-network.org)
   - Va dans Settings > API Clients > Create New Client
   - Copie `client_id` et `client_secret` dans `.env`
 
-## 📁 Structure du Projet
+## Structure du Projet
 
 ```
 meteo-vols-beauvais/
@@ -97,7 +97,7 @@ meteo-vols-beauvais/
 └── README.md
 ```
 
-## 📊 Données Disponibles
+## Données Disponibles
 
 ### Météo (OpenMeteo)
 - Température, humidité, vent
@@ -115,7 +115,7 @@ meteo-vols-beauvais/
 - Altitude, vitesse, cap
 - Trajectoires (avec OpenSky)
 
-## 🎓 Contexte Académique
+## Contexte Académique
 
 | | |
 |---|---|
@@ -124,7 +124,7 @@ meteo-vols-beauvais/
 | **Auteur** | Meunier Florentine |
 | **Date** | 2025 |
 
-## 📝 Licence
+## Licence
 
 Projet éducatif — Tous droits réservés.
 
