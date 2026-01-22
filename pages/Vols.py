@@ -1,113 +1,453 @@
 """
-Page Vols — Affiche le trafic aérien de l'aéroport Paris-Beauvais
+Page Vols — Trafic aérien autour de Paris-Beauvais
+Distinction claire entre vols BVA et vols en transit
 """
 
 import streamlit as st
+import pandas as pd
 from datetime import datetime
 
-# Import direct depuis la racine du projet
-from api.flights import get_flights_in_area, get_airport_info, get_arrivals, get_departures
+# Import des modules API
+from api.flights import get_flights_in_area, get_airport_info, get_airlines_stats, get_aircraft_stats
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Vols Beauvais",
+    page_title="BVA Monitor | Vols",
     page_icon="✈️",
     layout="wide"
 )
 
-st.title("✈️ Trafic Aérien — Paris-Beauvais")
+# =============================================================================
+# CSS Professionnel
+# =============================================================================
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    .stApp { font-family: 'Inter', sans-serif; }
+    
+    .page-header {
+        background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
+        padding: 1.25rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #00D4FF;
+    }
+    .page-header h1 { color: #FAFAFA; font-weight: 600; margin: 0; font-size: 1.35rem; }
+    .page-header p { color: #94A3B8; margin: 0.25rem 0 0 0; font-size: 0.85rem; }
+    
+    .stat-card {
+        background: #151B28;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #2D3748;
+        text-align: center;
+    }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #FAFAFA; }
+    .stat-label { font-size: 0.7rem; color: #64748B; text-transform: uppercase; }
+    .stat-green { color: #22C55E; }
+    .stat-yellow { color: #EAB308; }
+    .stat-red { color: #EF4444; }
+    .stat-blue { color: #00D4FF; }
+    .stat-orange { color: #F97316; }
+    .stat-gray { color: #94A3B8; }
+    
+    .flight-card {
+        background: #1A1F2E;
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+        border-left: 3px solid #00D4FF;
+    }
+    
+    .flight-card-arrival { border-left-color: #22C55E; }
+    .flight-card-departure { border-left-color: #F97316; }
+    .flight-card-transit { border-left-color: #64748B; }
+    
+    .alert-box {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        margin: 0.5rem 0;
+        font-size: 0.85rem;
+    }
+    .alert-info { background: rgba(0, 212, 255, 0.1); border-left: 3px solid #00D4FF; color: #7DD3FC; }
+    
+    .legend-box {
+        background: #151B28;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #2D3748;
+        margin: 1rem 0;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.3rem 0;
+        font-size: 0.85rem;
+        color: #94A3B8;
+    }
+    
+    .legend-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    
+    .footer {
+        text-align: center;
+        padding: 1.5rem;
+        color: #64748B;
+        font-size: 0.75rem;
+        border-top: 1px solid #2D3748;
+        margin-top: 2rem;
+    }
+    
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    hr { border: none; border-top: 1px solid #2D3748; margin: 1.5rem 0; }
+</style>
+""", unsafe_allow_html=True)
 
-# Infos aéroport
-airport = get_airport_info()
-st.markdown(f"**{airport['name']}** | Code IATA: `{airport['code_iata']}` | Code ICAO: `{airport['code_icao']}`")
+# =============================================================================
+# Fonctions de classification
+# =============================================================================
+def classify_flight(flight):
+    """
+    Classifie un vol : arrivée BVA, départ BVA, ou transit.
+    """
+    origin = flight.get('origin', 'N/A')
+    destination = flight.get('destination', 'N/A')
+    
+    is_arriving_bva = destination in ['BVA', 'LFOB']
+    is_departing_bva = origin in ['BVA', 'LFOB']
+    
+    if is_arriving_bva:
+        return 'arrival'
+    elif is_departing_bva:
+        return 'departure'
+    else:
+        return 'transit'
 
-# Bouton de rafraîchissement
-if st.button("🔄 Rafraîchir les données"):
-    st.rerun()
+
+# =============================================================================
+# En-tête
+# =============================================================================
+st.markdown("""
+<div class="page-header">
+    <h1>✈️ Trafic Aérien — Paris-Beauvais</h1>
+    <p>Surveillance des vols dans un rayon de 50 km autour de l'aéroport</p>
+</div>
+""", unsafe_allow_html=True)
+
+# Explication de la page
+st.markdown("""
+<div class="alert-box alert-info">
+    <b>💡 Comprendre cette page :</b><br>
+    Cette page affiche <b>tous les avions</b> dans un rayon de 50 km autour de Beauvais, pas seulement les vols BVA.<br>
+    Les vols sont classés en 3 catégories : <span style="color:#22C55E">🟢 Arrivées BVA</span> | 
+    <span style="color:#F97316">🟠 Départs BVA</span> | <span style="color:#94A3B8">⚫ Transit</span> (avions de passage)
+</div>
+""", unsafe_allow_html=True)
+
+# Contrôles
+col1, col2 = st.columns([1, 5])
+with col1:
+    if st.button("🔄 Actualiser", type="primary", use_container_width=True):
+        st.rerun()
 
 st.divider()
 
-
-# SECTION 1 : Vols en temps réel dans la zone
-
-st.header("📡 Vols en temps réel")
-st.caption(f"Avions dans un rayon de 50 km autour de l'aéroport")
-
+# =============================================================================
+# Chargement des données
+# =============================================================================
 with st.spinner("Recherche des vols en cours..."):
     flights = get_flights_in_area()
+    airport = get_airport_info()
 
-if flights:
-    st.success(f"✈️ **{len(flights)} vol(s)** détecté(s) dans la zone")
+# Classifier les vols
+arrivals_bva = []
+departures_bva = []
+transit_flights = []
+
+for flight in flights:
+    category = classify_flight(flight)
+    flight['category'] = category
     
-    # Afficher en colonnes
+    if category == 'arrival':
+        arrivals_bva.append(flight)
+    elif category == 'departure':
+        departures_bva.append(flight)
+    else:
+        transit_flights.append(flight)
+
+# Compter en vol vs au sol
+in_flight = len([f for f in flights if not f.get('on_ground', False)])
+on_ground = len([f for f in flights if f.get('on_ground', False)])
+
+# =============================================================================
+# Métriques principales
+# =============================================================================
+st.markdown("### Vue d'ensemble")
+
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+
+with col1:
+    st.markdown(f"""
+    <div class="stat-card">
+        <div class="stat-value stat-blue">{len(flights)}</div>
+        <div class="stat-label">Total Zone 50km</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f"""
+    <div class="stat-card">
+        <div class="stat-value stat-green">{len(arrivals_bva)}</div>
+        <div class="stat-label">Arrivées BVA</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown(f"""
+    <div class="stat-card">
+        <div class="stat-value stat-orange">{len(departures_bva)}</div>
+        <div class="stat-label">Départs BVA</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col4:
+    st.markdown(f"""
+    <div class="stat-card">
+        <div class="stat-value stat-gray">{len(transit_flights)}</div>
+        <div class="stat-label">Transit</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col5:
+    st.markdown(f"""
+    <div class="stat-card">
+        <div class="stat-value">{in_flight}</div>
+        <div class="stat-label">En vol</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col6:
+    st.markdown(f"""
+    <div class="stat-card">
+        <div class="stat-value">{on_ground}</div>
+        <div class="stat-label">Au sol</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.divider()
+
+# =============================================================================
+# Liste des vols par catégorie
+# =============================================================================
+if flights:
+    st.markdown("### Détail des vols")
+    
     col1, col2, col3 = st.columns(3)
     
-    # Compter les avions en vol vs au sol
-    in_flight = len([f for f in flights if not f.get('on_ground', False)])
-    on_ground = len([f for f in flights if f.get('on_ground', False)])
+    # Arrivées BVA
+    with col1:
+        st.markdown(f"#### 🟢 Arrivées BVA ({len(arrivals_bva)})")
+        
+        if arrivals_bva:
+            for flight in arrivals_bva[:8]:
+                status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
+                origin = flight['origin'] if flight['origin'] != 'N/A' else '???'
+                
+                st.markdown(f"""
+                <div class="flight-card flight-card-arrival">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: #22C55E;">{flight['callsign']}</strong>
+                        <span style="font-size: 0.75rem; color: #64748B;">{status}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #94A3B8; margin-top: 0.25rem;">
+                        {origin} → <b>BVA</b> • {flight['aircraft_type']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            if len(arrivals_bva) > 8:
+                st.caption(f"... et {len(arrivals_bva) - 8} autres")
+        else:
+            st.caption("Aucune arrivée en cours")
     
-    col1.metric("🛫 En vol", in_flight)
-    col2.metric("🅿️ Au sol", on_ground)
-    col3.metric("📊 Total", len(flights))
+    # Départs BVA
+    with col2:
+        st.markdown(f"#### 🟠 Départs BVA ({len(departures_bva)})")
+        
+        if departures_bva:
+            for flight in departures_bva[:8]:
+                status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
+                dest = flight['destination'] if flight['destination'] != 'N/A' else '???'
+                
+                st.markdown(f"""
+                <div class="flight-card flight-card-departure">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: #F97316;">{flight['callsign']}</strong>
+                        <span style="font-size: 0.75rem; color: #64748B;">{status}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #94A3B8; margin-top: 0.25rem;">
+                        <b>BVA</b> → {dest} • {flight['aircraft_type']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            if len(departures_bva) > 8:
+                st.caption(f"... et {len(departures_bva) - 8} autres")
+        else:
+            st.caption("Aucun départ en cours")
+    
+    # Transit
+    with col3:
+        st.markdown(f"#### ⚫ Transit ({len(transit_flights)})")
+        
+        if transit_flights:
+            for flight in transit_flights[:8]:
+                status = "Au sol" if flight.get('on_ground') else f"{flight['altitude']} ft"
+                origin = flight['origin'] if flight['origin'] != 'N/A' else '?'
+                dest = flight['destination'] if flight['destination'] != 'N/A' else '?'
+                
+                st.markdown(f"""
+                <div class="flight-card flight-card-transit">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: #94A3B8;">{flight['callsign']}</strong>
+                        <span style="font-size: 0.75rem; color: #64748B;">{status}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #64748B; margin-top: 0.25rem;">
+                        {origin} → {dest} • {flight['aircraft_type']}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            if len(transit_flights) > 8:
+                st.caption(f"... et {len(transit_flights) - 8} autres")
+        else:
+            st.caption("Aucun transit détecté")
+
+    st.divider()
+    
+    # =============================================================================
+    # Statistiques compagnies et avions
+    # =============================================================================
+    st.markdown("### Statistiques")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("#### Compagnies aériennes")
+        airlines_stats = get_airlines_stats(flights)
+        
+        if airlines_stats:
+            # Trier par nombre de vols
+            sorted_airlines = sorted(airlines_stats.items(), key=lambda x: x[1], reverse=True)
+            
+            for airline, count in sorted_airlines[:6]:
+                pct = count / len(flights) * 100
+                st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #2D3748;">
+                    <span style="color: #FAFAFA;">{airline}</span>
+                    <span style="color: #00D4FF;">{count} vols ({pct:.0f}%)</span>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.caption("Données insuffisantes")
+    
+    with col2:
+        st.markdown("#### Types d'avions")
+        aircraft_stats = get_aircraft_stats(flights)
+        
+        if aircraft_stats:
+            sorted_aircraft = sorted(aircraft_stats.items(), key=lambda x: x[1], reverse=True)
+            
+            for aircraft, count in sorted_aircraft[:6]:
+                pct = count / len(flights) * 100
+                st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #2D3748;">
+                    <span style="color: #FAFAFA;">{aircraft}</span>
+                    <span style="color: #8B5CF6;">{count} ({pct:.0f}%)</span>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.caption("Données insuffisantes")
     
     st.divider()
     
-    # Liste des vols
-    for i, flight in enumerate(flights):
-        with st.container():
-            cols = st.columns([2, 2, 1, 1, 1])
-            
-            # Callsign et compagnie
-            cols[0].markdown(f"**✈️ {flight['callsign']}**")
-            cols[0].caption(f"Compagnie: {flight['airline_icao']}")
-            
-            # Route
-            origin = flight['origin'] if flight['origin'] != 'N/A' else '???'
-            dest = flight['destination'] if flight['destination'] != 'N/A' else '???'
-            cols[1].markdown(f"🛫 {origin} → 🛬 {dest}")
-            cols[1].caption(f"Avion: {flight['aircraft_type']}")
-            
-            # Altitude
-            altitude_ft = flight['altitude']
-            altitude_m = int(altitude_ft * 0.3048)
-            cols[2].metric("Altitude", f"{altitude_ft} ft")
-            
-            # Vitesse
-            speed_kts = flight['ground_speed']
-            speed_kmh = int(speed_kts * 1.852)
-            cols[3].metric("Vitesse", f"{speed_kts} kts")
-            
-            # Cap
-            cols[4].metric("Cap", f"{flight['heading']}°")
-            
-            st.divider()
+    # =============================================================================
+    # Tableau complet
+    # =============================================================================
+    st.markdown("### Tableau complet")
+    
+    with st.expander("📋 Voir tous les vols"):
+        df = pd.DataFrame(flights)
+        
+        # Ajouter la catégorie lisible
+        category_map = {'arrival': '🟢 Arrivée BVA', 'departure': '🟠 Départ BVA', 'transit': '⚫ Transit'}
+        df['Catégorie'] = df['category'].map(category_map)
+        
+        # Sélectionner les colonnes à afficher
+        cols_to_show = ['callsign', 'Catégorie', 'airline_icao', 'aircraft_type', 'origin', 'destination', 'altitude', 'ground_speed', 'on_ground']
+        df_display = df[[c for c in cols_to_show if c in df.columns]].copy()
+        df_display.columns = ['Callsign', 'Catégorie', 'Compagnie', 'Avion', 'Origine', 'Destination', 'Altitude (ft)', 'Vitesse (kts)', 'Au sol']
+        
+        st.dataframe(df_display, use_container_width=True, hide_index=True)
 
 else:
-    st.info("🔍 Aucun vol détecté dans la zone actuellement. Cela peut arriver si aucun avion ne survole Beauvais en ce moment.")
+    st.info("🔍 Aucun vol détecté dans la zone de 50 km autour de Beauvais. Cela peut arriver si le trafic est faible à cette heure.")
 
+# =============================================================================
+# Informations aéroport
+# =============================================================================
 st.divider()
+st.markdown("### Informations sur l'aéroport")
 
-
-# SECTION 2 : Informations aéroport
-
-st.header("ℹ️ Informations sur l'aéroport")
-
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("### 📍 Localisation")
-    st.markdown(f"""
-    - **Ville** : {airport.get('city', 'Beauvais')}, {airport.get('country', 'France')}
-    - **Latitude** : {airport['latitude']}°
-    - **Longitude** : {airport['longitude']}°
-    - **Altitude** : {airport['altitude']} m
-    """)
+    st.markdown(f"**{airport['name']}**")
+    st.caption(f"IATA: {airport['code_iata']} • ICAO: {airport['code_icao']}")
 
 with col2:
-    st.markdown("### 🏢 Compagnies principales")
-    for company in airport['principales_compagnies']:
-        st.markdown(f"- {company}")
+    st.markdown("**Localisation**")
+    st.caption(f"{airport['city']}, {airport['country']}")
+    st.caption(f"Altitude: {airport['altitude']} m")
 
+with col3:
+    st.markdown("**Compagnies principales**")
+    st.caption(" • ".join(airport['principales_compagnies']))
+
+# =============================================================================
+# Légende
+# =============================================================================
+st.markdown("""
+<div class="legend-box">
+    <div style="font-weight: 600; color: #FAFAFA; margin-bottom: 0.5rem;">Légende des catégories</div>
+    <div class="legend-item">
+        <div class="legend-dot" style="background: #22C55E;"></div>
+        <b>Arrivées BVA</b> — Vols dont la destination est Paris-Beauvais
+    </div>
+    <div class="legend-item">
+        <div class="legend-dot" style="background: #F97316;"></div>
+        <b>Départs BVA</b> — Vols partant de Paris-Beauvais
+    </div>
+    <div class="legend-item">
+        <div class="legend-dot" style="background: #64748B;"></div>
+        <b>Transit</b> — Avions passant dans la zone sans s'arrêter à BVA (ex: Paris-CDG ↔ Londres)
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# =============================================================================
 # Footer
-st.divider()
-st.caption("Données fournies par FlightRadar24 API — Usage éducatif uniquement")
+# =============================================================================
+st.markdown(f"""
+<div class="footer">
+    Données : FlightRadar24 API — Usage éducatif uniquement<br>
+    Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M')}
+</div>
+""", unsafe_allow_html=True)

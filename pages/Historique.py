@@ -1,6 +1,6 @@
 """
 Page Historique & Prévisions — Analyse corrélation météo/aviation
-Design professionnel unifié
+Inclut explication méthodologie des trajectoires
 """
 
 import streamlit as st
@@ -21,7 +21,7 @@ from api.weather import (
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Historique",
-    page_icon="✈️",
+    page_icon="📈",
     layout="wide"
 )
 
@@ -122,6 +122,25 @@ st.markdown("""
         color: #FCA5A5;
     }
     
+    .alert-info {
+        background: rgba(0, 212, 255, 0.1);
+        border-left: 3px solid #00D4FF;
+        color: #7DD3FC;
+    }
+    
+    .methodology-box {
+        background: #151B28;
+        padding: 1.5rem;
+        border-radius: 10px;
+        border: 1px solid #2D3748;
+        margin: 1rem 0;
+    }
+    
+    .methodology-box h4 {
+        color: #00D4FF;
+        margin-top: 0;
+    }
+    
     .footer {
         text-align: center;
         padding: 1.5rem;
@@ -147,12 +166,12 @@ st.markdown("""
 # =============================================================================
 st.markdown("""
 <div class="page-header">
-    <h1>Historique & Prévisions</h1>
+    <h1>📈 Historique & Prévisions</h1>
     <p>Analyse des données météo et impact sur les opérations aériennes</p>
 </div>
 """, unsafe_allow_html=True)
 
-if st.button("Actualiser", type="secondary"):
+if st.button("🔄 Actualiser", type="secondary"):
     st.cache_data.clear()
     st.rerun()
 
@@ -161,7 +180,7 @@ st.divider()
 # =============================================================================
 # Onglets
 # =============================================================================
-tab1, tab2, tab3 = st.tabs(["Prévisions 7 jours", "Historique Météo", "Analyse Corrélation"])
+tab1, tab2, tab3, tab4 = st.tabs(["📅 Prévisions 7 jours", "🌡️ Historique Météo", "📊 Analyse Corrélation", "🛫 Méthodologie Trajectoires"])
 
 # =============================================================================
 # TAB 1 : Prévisions 7 jours
@@ -178,11 +197,11 @@ with tab1:
         alerts_yellow = len([d for d in forecast if d['level'] == 'yellow'])
         
         if alerts_red > 0:
-            st.markdown(f'<div class="alert-box alert-danger">{alerts_red} jour(s) avec conditions difficiles prévus cette semaine</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="alert-box alert-danger">⚠️ {alerts_red} jour(s) avec conditions difficiles prévus cette semaine</div>', unsafe_allow_html=True)
         elif alerts_yellow > 0:
-            st.markdown(f'<div class="alert-box alert-warning">{alerts_yellow} jour(s) nécessitant une vigilance</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="alert-box alert-warning">⚠️ {alerts_yellow} jour(s) nécessitant une vigilance</div>', unsafe_allow_html=True)
         else:
-            st.markdown('<div class="alert-box alert-success">Conditions favorables pour toute la semaine</div>', unsafe_allow_html=True)
+            st.markdown('<div class="alert-box alert-success">✅ Conditions favorables pour toute la semaine</div>', unsafe_allow_html=True)
         
         st.markdown("")
         
@@ -255,7 +274,7 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
         
         # Détails
-        with st.expander("Voir le détail des prévisions"):
+        with st.expander("📋 Voir le détail des prévisions"):
             for day in forecast:
                 st.markdown(f"**{day['date_formatted']}** — Score: {day['score']}/100")
                 if day['alerts']:
@@ -276,7 +295,7 @@ with tab2:
     with st.spinner("Chargement..."):
         history = get_historical_weather(days=period)
     
-    if history:
+    if history and history.get('time'):
         df = pd.DataFrame({
             'Date': history['time'],
             'Temp Max': history['temperature_2m_max'],
@@ -373,7 +392,7 @@ with tab2:
             )
             st.plotly_chart(fig_precip, use_container_width=True)
         
-        with st.expander("Voir les données brutes"):
+        with st.expander("📋 Voir les données brutes"):
             st.dataframe(df, use_container_width=True, hide_index=True)
 
 # =============================================================================
@@ -387,7 +406,7 @@ with tab3:
     with st.spinner("Analyse en cours..."):
         history = get_historical_weather(days=30)
     
-    if history:
+    if history and history.get('time'):
         df = pd.DataFrame({
             'Date': history['time'],
             'Vent Max': history['wind_speed_10m_max'],
@@ -399,16 +418,16 @@ with tab3:
         # Calcul du score
         def calc_score(row):
             score = 100
-            if row['Vent Max'] > 50: score -= 40
-            elif row['Vent Max'] > 35: score -= 25
-            elif row['Vent Max'] > 25: score -= 10
+            if row['Vent Max'] and row['Vent Max'] > 50: score -= 40
+            elif row['Vent Max'] and row['Vent Max'] > 35: score -= 25
+            elif row['Vent Max'] and row['Vent Max'] > 25: score -= 10
             
             if row['Rafales'] and row['Rafales'] > 60: score -= 20
             elif row['Rafales'] and row['Rafales'] > 45: score -= 10
             
-            if row['Précip'] > 20: score -= 25
-            elif row['Précip'] > 10: score -= 15
-            elif row['Précip'] > 5: score -= 5
+            if row['Précip'] and row['Précip'] > 20: score -= 25
+            elif row['Précip'] and row['Précip'] > 10: score -= 15
+            elif row['Précip'] and row['Précip'] > 5: score -= 5
             
             if row['Code'] in [45, 48]: score -= 30
             elif row['Code'] in [95, 96, 99]: score -= 35
@@ -507,28 +526,217 @@ with tab3:
             st.plotly_chart(fig2, use_container_width=True)
         
         # Coefficient de corrélation
-        corr_vent = np.corrcoef(df['Vent Max'].fillna(0), df['Score'])[0, 1]
-        corr_precip = np.corrcoef(df['Précip'].fillna(0), df['Score'])[0, 1]
+        df_clean = df.dropna(subset=['Vent Max', 'Score'])
+        if len(df_clean) > 5:
+            corr_vent = np.corrcoef(df_clean['Vent Max'], df_clean['Score'])[0, 1]
+            corr_precip = np.corrcoef(df_clean['Précip'].fillna(0), df_clean['Score'])[0, 1]
+            
+            # Conclusion
+            st.markdown("### Conclusions")
+            
+            windy_days = len(df[df['Vent Max'] > 30])
+            
+            st.markdown(f"""
+            **Résumé des 30 derniers jours :**
+            
+            - **{favorable} jours** ({favorable/30*100:.0f}%) avec conditions favorables
+            - **{difficult} jours** ({difficult/30*100:.0f}%) avec conditions difficiles  
+            - **{windy_days} jours** avec vent supérieur à 30 km/h
+            - Score moyen de la période : **{avg:.0f}/100**
+            
+            **Corrélations mesurées :**
+            - Vent ↔ Score : **{corr_vent:.2f}** (corrélation négative attendue)
+            - Précipitations ↔ Score : **{corr_precip:.2f}**
+            
+            Les données confirment une corrélation claire entre les conditions météo défavorables et la baisse du score aviation.
+            """)
+
+# =============================================================================
+# TAB 4 : Méthodologie Trajectoires (NOUVELLE SECTION)
+# =============================================================================
+with tab4:
+    st.markdown("### Méthodologie des Trajectoires")
+    
+    st.markdown("""
+    <div class="alert-box alert-info">
+        <b>💡 Cette section explique</b> comment les trajectoires des avions sont obtenues et affichées 
+        dans la carte, ainsi que les limites des données gratuites disponibles.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("")
+    
+    # Section 1 : Sources de données
+    st.markdown("#### 1. Sources de données utilisées")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div class="methodology-box">
+            <h4>🛫 FlightRadar24 (Vols en temps réel)</h4>
+            <p style="color: #94A3B8; font-size: 0.9rem;">
+            <b>Données fournies :</b>
+            <ul style="margin-top: 0.5rem;">
+                <li>Position temps réel (latitude, longitude)</li>
+                <li>Altitude et vitesse</li>
+                <li>Callsign et compagnie</li>
+                <li>Origine et destination déclarées</li>
+                <li>Type d'avion</li>
+            </ul>
+            <b style="color: #22C55E;">✓ Gratuit et illimité</b>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="methodology-box">
+            <h4>📡 OpenSky Network (Trajectoires)</h4>
+            <p style="color: #94A3B8; font-size: 0.9rem;">
+            <b>Données fournies :</b>
+            <ul style="margin-top: 0.5rem;">
+                <li>Historique des positions (waypoints)</li>
+                <li>Trajectoire complète du vol</li>
+                <li>Données ADS-B brutes</li>
+            </ul>
+            <b style="color: #EAB308;">⚠️ Nécessite authentification</b><br>
+            <small>Compte gratuit limité à quelques requêtes/jour</small>
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.divider()
+    
+    # Section 2 : Types de trajectoires
+    st.markdown("#### 2. Types de trajectoires affichées")
+    
+    st.markdown("""
+    <div class="methodology-box">
+        <h4>🗺️ Deux types de trajectoires sur la carte</h4>
         
-        # Conclusion
-        st.markdown("### Conclusions")
+        <table style="width: 100%; margin-top: 1rem; color: #94A3B8;">
+            <tr style="border-bottom: 1px solid #2D3748;">
+                <td style="padding: 0.75rem;"><b style="color: #22C55E;">━━━ Ligne pleine</b></td>
+                <td style="padding: 0.75rem;"><b>Trajectoire réelle (OpenSky)</b></td>
+                <td style="padding: 0.75rem;">Points GPS historiques enregistrés par les récepteurs ADS-B</td>
+            </tr>
+            <tr>
+                <td style="padding: 0.75rem;"><b style="color: #64748B;">- - - Ligne pointillée</b></td>
+                <td style="padding: 0.75rem;"><b>Trajectoire estimée</b></td>
+                <td style="padding: 0.75rem;">Ligne droite entre l'aéroport d'origine/destination et BVA</td>
+            </tr>
+        </table>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("")
+    
+    # Section 3 : Algorithme d'estimation
+    st.markdown("#### 3. Comment sont estimées les trajectoires ?")
+    
+    st.markdown("""
+    Quand les trajectoires réelles ne sont pas disponibles (compte OpenSky non authentifié ou vol sans données), 
+    nous utilisons une **estimation simplifiée** :
+    """)
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        **Algorithme utilisé :**
         
-        windy_days = len(df[df['Vent Max'] > 30])
+        ```python
+        def estimate_flight_path(origin_coords, dest_coords, num_points=30):
+            # Interpolation linéaire entre origine et destination
+            points = []
+            for i in range(num_points + 1):
+                t = i / num_points
+                lat = origin_lat + t * (dest_lat - origin_lat)
+                lon = origin_lon + t * (dest_lon - origin_lon)
+                points.append((lat, lon))
+            return points
+        ```
         
-        st.markdown(f"""
-        **Résumé des 30 derniers jours :**
-        
-        - **{favorable} jours** ({favorable/30*100:.0f}%) avec conditions favorables
-        - **{difficult} jours** ({difficult/30*100:.0f}%) avec conditions difficiles  
-        - **{windy_days} jours** avec vent supérieur à 30 km/h
-        - Score moyen de la période : **{avg:.0f}/100**
-        
-        **Corrélations mesurées :**
-        - Vent ↔ Score : **{corr_vent:.2f}** (corrélation négative attendue)
-        - Précipitations ↔ Score : **{corr_precip:.2f}**
-        
-        Les données confirment une corrélation claire entre les conditions météo défavorables et la baisse du score aviation.
+        **Limites de cette méthode :**
+        - Ne prend pas en compte les couloirs aériens réels (SID/STAR)
+        - Ignore la courbure terrestre (orthodromie)
+        - Ne reflète pas les zones de contrôle aérien
+        - Pas de prise en compte du vent ou de la météo
         """)
+    
+    with col2:
+        st.markdown("""
+        <div class="methodology-box">
+            <h4>🎯 Précision</h4>
+            <p style="color: #94A3B8;">
+            <b>Trajectoire réelle :</b> ~10-50m<br>
+            <b>Trajectoire estimée :</b> Indicative uniquement
+            </p>
+            <hr style="border-top: 1px solid #2D3748;">
+            <p style="color: #64748B; font-size: 0.8rem;">
+            Les trajectoires estimées servent uniquement à visualiser 
+            l'origine/destination probable d'un vol.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.divider()
+    
+    # Section 4 : Pour aller plus loin
+    st.markdown("#### 4. Pour des trajectoires plus précises")
+    
+    st.markdown("""
+    <div class="alert-box alert-warning">
+        <b>APIs premium disponibles (hors cadre de ce projet) :</b>
+        <ul style="margin-top: 0.5rem; margin-bottom: 0;">
+            <li><b>FlightAware</b> - Historique complet et trajectoires détaillées (~$50/mois)</li>
+            <li><b>AeroDataBox</b> - Retards, horaires, données aéroports (~$20/mois)</li>
+            <li><b>OpenSky Premium</b> - Accès étendu aux données ADS-B</li>
+            <li><b>Données AIRAC</b> - Routes officielles (SID/STAR) publiées par les autorités aériennes</li>
+        </ul>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("")
+    
+    # Section 5 : Schéma explicatif
+    st.markdown("#### 5. Schéma : Vraie trajectoire vs Estimation")
+    
+    st.markdown("""
+    ```
+                        ✈️ Vraie trajectoire (courbe, suit les couloirs aériens)
+                       /
+    ORIGINE ○─────────/─────────────────────○ BVA
+                     /                      
+                    /   - - - - - - - - - -   Trajectoire estimée (ligne droite)
+                   /
+                  ✈️
+    
+    La vraie trajectoire suit :
+    • Les procédures de départ (SID - Standard Instrument Departure)
+    • Les routes aériennes (Airways)  
+    • Les procédures d'approche (STAR - Standard Terminal Arrival Route)
+    • Les instructions du contrôle aérien
+    ```
+    """)
+    
+    st.markdown("")
+    
+    # Conclusion
+    st.markdown("""
+    <div class="methodology-box">
+        <h4>📝 En résumé pour l'oral</h4>
+        <p style="color: #FAFAFA;">
+        "Les trajectoires affichées sur la carte proviennent de deux sources : 
+        les <b>données réelles</b> via OpenSky Network (quand disponibles) montrant le chemin exact 
+        suivi par l'avion, et des <b>estimations</b> (lignes droites) quand ces données ne sont pas 
+        accessibles. Cette limitation est due aux restrictions des APIs gratuites. 
+        Pour un projet professionnel, on utiliserait des données AIRAC officielles 
+        et des APIs premium comme FlightAware."
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("""
