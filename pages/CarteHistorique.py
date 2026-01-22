@@ -27,7 +27,7 @@ from api.weather import get_historical_weather, get_current_weather
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Carte Historique",
-    page_icon="",
+    page_icon="🗺️",
     layout="wide"
 )
 
@@ -195,7 +195,7 @@ with c3:
     )
 
 with c4:
-    if st.button("Recharger", type="primary", use_container_width=True):
+    if st.button("🔄 Recharger", type="primary", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
@@ -392,7 +392,7 @@ if only_arrivals:
     all_flights = [f for f in all_flights if f.get("is_arrival")]
 
 with col_map:
-    st.markdown("### Carte des trajectoires")
+    st.markdown("### 🗺️ Carte des trajectoires")
 
     m = folium.Map(
         location=[BVA_LAT, BVA_LON],
@@ -417,8 +417,8 @@ with col_map:
 
     folium.Marker(
         location=[BVA_LAT, BVA_LON],
-        popup="Paris-Beauvais (LFOB)",
-        tooltip="BVA - Beauvais",
+        popup="✈️ Paris-Beauvais (LFOB)",
+        tooltip="🛫 BVA - Beauvais",
         icon=folium.Icon(color='red', icon='plane', prefix='fa')
     ).add_to(m)
 
@@ -453,7 +453,7 @@ with col_map:
                     color=color,
                     weight=3,
                     opacity=0.85,
-                    tooltip=f"{flight.get('callsign','N/A')} | {origin_display} → {dest_display} (réel)"
+                    tooltip=f"✈️ {flight.get('callsign','N/A')} | {origin_display} → {dest_display} (réel)"
                 ).add_to(layer_real)
 
                 # petit point au début/fin
@@ -499,7 +499,7 @@ with col_map:
                             weight=2,
                             opacity=0.55,
                             dash_array='5, 6',
-                            tooltip=f"{flight.get('callsign','N/A')} | {origin_code} → BVA (estimé)"
+                            tooltip=f"✈️ {flight.get('callsign','N/A')} | {origin_code} → BVA (estimé)"
                         ).add_to(layer_est)
 
                         folium.CircleMarker(
@@ -532,7 +532,7 @@ with col_map:
                             weight=2,
                             opacity=0.55,
                             dash_array='5, 6',
-                            tooltip=f" {flight.get('callsign','N/A')} | BVA → {dest_code} (estimé)"
+                            tooltip=f"✈️ {flight.get('callsign','N/A')} | BVA → {dest_code} (estimé)"
                         ).add_to(layer_est)
 
                         folium.CircleMarker(
@@ -559,202 +559,10 @@ with col_map:
     st_folium(m, width=None, height=560, use_container_width=True, returned_objects=[])
 
     st.caption(
-        f"Affiché : {flights_with_track} réels + {flights_estimated} estimés"
-        + (f" |  {skipped_no_coords} sans coords" if debug_mode else "")
-        + (f" |  {skipped_no_trackpts} tracks vides" if debug_mode else "")
+        f"📊 Affiché : {flights_with_track} réels + {flights_estimated} estimés"
+        + (f" | ⛔ {skipped_no_coords} sans coords" if debug_mode else "")
+        + (f" | ⛔ {skipped_no_trackpts} tracks vides" if debug_mode else "")
     )
-    with st.expander("Méthodologie des trajectoires", expanded=False):
-        st.markdown("""
-        <div class="alert-box alert-info">
-            <b>Cette section explique</b> comment les trajectoires des avions sont obtenues et affichées,
-            ainsi que les limites des données gratuites disponibles.
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("### Méthodologie des Trajectoires")
-    
-    st.markdown("""
-    <div class="alert-box alert-info">
-        <b>💡 Cette section explique</b> comment les trajectoires des avions sont obtenues et affichées 
-        dans la carte, ainsi que les limites des données gratuites disponibles.
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("")
-    
-    # Section 1 : Sources de données
-    st.markdown("#### 1. Sources de données utilisées")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        <div class="methodology-box">
-            <h4>🛫 FlightRadar24 (Vols en temps réel)</h4>
-            <p style="color: #94A3B8; font-size: 0.9rem;">
-            <b>Données fournies :</b>
-            <ul style="margin-top: 0.5rem;">
-                <li>Position temps réel (latitude, longitude)</li>
-                <li>Altitude et vitesse</li>
-                <li>Callsign et compagnie</li>
-                <li>Origine et destination déclarées</li>
-                <li>Type d'avion</li>
-            </ul>
-            <b style="color: #22C55E;">✓ Gratuit et illimité</b>
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class="methodology-box">
-            <h4>📡 OpenSky Network (Trajectoires)</h4>
-            <p style="color: #94A3B8; font-size: 0.9rem;">
-            <b>Données fournies :</b>
-            <ul style="margin-top: 0.5rem;">
-                <li>Historique des positions (waypoints)</li>
-                <li>Trajectoire complète du vol</li>
-                <li>Données ADS-B brutes</li>
-            </ul>
-            <b style="color: #EAB308;">⚠️ Nécessite authentification</b><br>
-            <small>Compte gratuit limité à quelques requêtes/jour</small>
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.divider()
-    
-    # Section 2 : Types de trajectoires
-    st.markdown("#### 2. Types de trajectoires affichées")
-    
-    st.markdown("""
-    <div class="methodology-box">
-        <h4>🗺️ Deux types de trajectoires sur la carte</h4>
-        
-        <table style="width: 100%; margin-top: 1rem; color: #94A3B8;">
-            <tr style="border-bottom: 1px solid #2D3748;">
-                <td style="padding: 0.75rem;"><b style="color: #22C55E;">━━━ Ligne pleine</b></td>
-                <td style="padding: 0.75rem;"><b>Trajectoire réelle (OpenSky)</b></td>
-                <td style="padding: 0.75rem;">Points GPS historiques enregistrés par les récepteurs ADS-B</td>
-            </tr>
-            <tr>
-                <td style="padding: 0.75rem;"><b style="color: #64748B;">- - - Ligne pointillée</b></td>
-                <td style="padding: 0.75rem;"><b>Trajectoire estimée</b></td>
-                <td style="padding: 0.75rem;">Ligne droite entre l'aéroport d'origine/destination et BVA</td>
-            </tr>
-        </table>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("")
-    
-    # Section 3 : Algorithme d'estimation
-    st.markdown("#### 3. Comment sont estimées les trajectoires ?")
-    
-    st.markdown("""
-    Quand les trajectoires réelles ne sont pas disponibles (compte OpenSky non authentifié ou vol sans données), 
-    nous utilisons une **estimation simplifiée** :
-    """)
-    
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        st.markdown("""
-        **Algorithme utilisé :**
-        
-        ```python
-        def estimate_flight_path(origin_coords, dest_coords, num_points=30):
-            # Interpolation linéaire entre origine et destination
-            points = []
-            for i in range(num_points + 1):
-                t = i / num_points
-                lat = origin_lat + t * (dest_lat - origin_lat)
-                lon = origin_lon + t * (dest_lon - origin_lon)
-                points.append((lat, lon))
-            return points
-        ```
-        
-        **Limites de cette méthode :**
-        - Ne prend pas en compte les couloirs aériens réels (SID/STAR)
-        - Ignore la courbure terrestre (orthodromie)
-        - Ne reflète pas les zones de contrôle aérien
-        - Pas de prise en compte du vent ou de la météo
-        """)
-    
-    with col2:
-        st.markdown("""
-        <div class="methodology-box">
-            <h4>🎯 Précision</h4>
-            <p style="color: #94A3B8;">
-            <b>Trajectoire réelle :</b> ~10-50m<br>
-            <b>Trajectoire estimée :</b> Indicative uniquement
-            </p>
-            <hr style="border-top: 1px solid #2D3748;">
-            <p style="color: #64748B; font-size: 0.8rem;">
-            Les trajectoires estimées servent uniquement à visualiser 
-            l'origine/destination probable d'un vol.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    st.divider()
-    
-    # Section 4 : Pour aller plus loin
-    st.markdown("#### 4. Pour des trajectoires plus précises")
-    
-    st.markdown("""
-    <div class="alert-box alert-warning">
-        <b>APIs premium disponibles (hors cadre de ce projet) :</b>optio
-        <ul style="margin-top: 0.5rem; margin-bottom: 0;">
-            <li><b>FlightAware</b> - Historique complet et trajectoires détaillées (~$50/mois)</li>
-            <li><b>AeroDataBox</b> - Retards, horaires, données aéroports (~$20/mois)</li>
-            <li><b>OpenSky Premium</b> - Accès étendu aux données ADS-B</li>
-            <li><b>Données AIRAC</b> - Routes officielles (SID/STAR) publiées par les autorités aériennes</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("")
-    
-    # Section 5 : Schéma explicatif
-    st.markdown("#### 5. Schéma : Vraie trajectoire vs Estimation")
-    
-    st.markdown("""
-    ```
-                        ✈️ Vraie trajectoire (courbe, suit les couloirs aériens)
-                       /
-    ORIGINE ○─────────/─────────────────────○ BVA
-                     /                      
-                    /   - - - - - - - - - -   Trajectoire estimée (ligne droite)
-                   /
-                  ✈️
-    
-    La vraie trajectoire suit :
-    • Les procédures de départ (SID - Standard Instrument Departure)
-    • Les routes aériennes (Airways)  
-    • Les procédures d'approche (STAR - Standard Terminal Arrival Route)
-    • Les instructions du contrôle aérien
-    ```
-    """)
-    
-    st.markdown("")
-    
-    # Conclusion
-    st.markdown("""
-    <div class="methodology-box">
-        <h4>📝 En résumé pour l'oral</h4>
-        <p style="color: #FAFAFA;">
-        "Les trajectoires affichées sur la carte proviennent de deux sources : 
-        les <b>données réelles</b> via OpenSky Network (quand disponibles) montrant le chemin exact 
-        suivi par l'avion, et des <b>estimations</b> (lignes droites) quand ces données ne sont pas 
-        accessibles. Cette limitation est due aux restrictions des APIs gratuites. 
-        Pour un projet professionnel, on utiliserait des données AIRAC officielles 
-        et des APIs premium comme FlightAware."
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-
 
     if debug_mode:
         with st.expander("🧪 Debug trajectoires", expanded=False):
