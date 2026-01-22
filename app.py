@@ -16,7 +16,7 @@ from api.air_quality import get_current_air_quality, calculate_aviation_air_impa
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Météo & Vols",
-    page_icon="✈️",
+    page_icon="🛫",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -389,7 +389,7 @@ with col_left:
                 st.caption("Aucun facteur de risque")
             
             # Explication du score
-            with st.expander("ℹ️ Comment est calculé ce score ?"):
+            with st.expander("INFO : Comment est calculé ce score ?"):
                 st.markdown("""
                 **Score Aviation (0-100)** évalue les conditions de vol :
                 
@@ -405,9 +405,9 @@ with col_left:
                 | Neige | -30 points |
                 
                 **Interprétation :**
-                - 🟢 80-100 : Conditions optimales
-                - 🟡 50-79 : Vigilance recommandée
-                - 🔴 0-49 : Conditions difficiles
+                - [80-100] : Conditions optimales
+                - [50-79] : Vigilance recommandée
+                - [0-49] : Conditions difficiles
                 """)
         
         # Prévisions 7 jours
@@ -515,7 +515,7 @@ st.markdown("#### Qualité de l'air & Impact environnemental")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("##### 🌬️ Qualité de l'air")
+    st.markdown("##### Qualité de l'air")
     
     if air_quality:
         aqi = air_quality.get('european_aqi', 0)
@@ -572,7 +572,7 @@ with col1:
         """, unsafe_allow_html=True)
         
         # Explication
-        with st.expander("ℹ️ Comment est mesuré l'AQI ?"):
+        with st.expander("INFO : Comment est mesuré l'AQI ?"):
             st.markdown("""
             **L'Indice de Qualité de l'Air Européen (AQI)** est calculé à partir de 5 polluants :
             
@@ -590,7 +590,7 @@ with col1:
         st.info("Données qualité de l'air non disponibles")
 
 with col2:
-    st.markdown("##### ✈️ Impact environnemental estimé")
+    st.markdown("##### Impact environnemental estimé")
     
     # Calcul de l'impact
     wind_speed = weather['wind_speed_10m'] if weather else 10
@@ -624,7 +624,7 @@ with col2:
         st.caption(f"Basé sur {len(flights)} vols • Vent {wind_speed:.0f} km/h")
     
     # Explication
-    with st.expander("ℹ️ Comment est calculé l'impact ?"):
+    with st.expander("INFO : Comment est calculé l'impact ?"):
         st.markdown(f"""
         **Méthode de calcul (simplifiée) :**
         
@@ -678,7 +678,7 @@ if hourly:
             hovertemplate='%{y}°C<extra></extra>'
         ))
         fig_temp.update_layout(
-            title=dict(text="🌡️ Température (°C)", font=dict(size=13, color='#FAFAFA')),
+            title=dict(text="Température (°C)", font=dict(size=13, color='#FAFAFA')),
             height=220,
             margin=dict(t=35, b=30, l=40, r=15),
             paper_bgcolor='rgba(0,0,0,0)',
@@ -701,7 +701,7 @@ if hourly:
         fig_wind.add_hline(y=30, line_dash="dash", line_color="#EF4444", line_width=1,
                           annotation_text="Seuil", annotation_font_color="#EF4444", annotation_font_size=10)
         fig_wind.update_layout(
-            title=dict(text="💨 Vitesse du vent (km/h)", font=dict(size=13, color='#FAFAFA')),
+            title=dict(text="Vitesse du vent (km/h)", font=dict(size=13, color='#FAFAFA')),
             height=220,
             margin=dict(t=35, b=30, l=40, r=15),
             paper_bgcolor='rgba(0,0,0,0)',
@@ -722,7 +722,7 @@ if hourly:
             hovertemplate='%{y} mm<extra></extra>'
         ))
         fig_precip.update_layout(
-            title=dict(text="🌧️ Précipitations (mm)", font=dict(size=13, color='#FAFAFA')),
+            title=dict(text="Précipitations (mm)", font=dict(size=13, color='#FAFAFA')),
             height=220,
             margin=dict(t=35, b=30, l=40, r=15),
             paper_bgcolor='rgba(0,0,0,0)',
@@ -747,7 +747,7 @@ if hourly:
             st.markdown(f"""
             <div style="background: #151B28; padding: 1.25rem; border-radius: 8px; height: 195px;">
                 <div style="font-size: 0.85rem; font-weight: 600; color: #FAFAFA; margin-bottom: 1rem;">
-                    💧 Conditions actuelles
+                    Conditions actuelles
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div>
@@ -761,7 +761,7 @@ if hourly:
                 </div>
                 <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #2D3748;">
                     <div style="font-size: 0.8rem; color: #94A3B8;">
-                        {'⚠️ Humidité élevée - Risque de brouillard' if humidity > 90 else '✅ Visibilité normale' if humidity < 80 else '⚡ Humidité modérée'}
+                        {'[!] Humidité élevée - Risque de brouillard' if humidity > 90 else '[OK] Visibilité normale' if humidity < 80 else '[~] Humidité modérée'}
                     </div>
                 </div>
             </div>
