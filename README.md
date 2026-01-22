@@ -14,22 +14,40 @@ L'objectif est de visualiser la **corrélation entre les conditions météo et l
 
 ## Fonctionnalités
 
-### Carte Interactive
-- Visualisation temps réel des avions autour de Beauvais
-- **Trajectoires** des vols (origines et destinations)
-- Données météo en overlay
-- Qualité de l'air en temps réel
+### 🗺️ Cartes Interactives
+- **Carte Temps Réel** — Visualisation live des avions autour de Beauvais (50km)
+  - Positions des avions avec données de vol
+  - Overlay météo et qualité de l'air
+  - Filtre vols BVA / transit
+- **Carte Historique** — Trajectoires passées avec waypoints
+  - Visualisation des routes aériennes
+  - Données météo historiques en overlay
+  - Recherche par période
 
-###  Analyses
-- Score aviation (impact météo sur les opérations)
-- Prévisions 7 jours avec alertes
-- Corrélation météo / trafic
-- Tendances climatiques multi-annuelles
+### ✈️ Analyses Trafic Aérien
+- **Vols en Direct** — Liste temps réel des vols
+  - Filtrage arrivées/départs BVA
+  - Statistiques par compagnie/appareil
+  - Indicateurs de trafic
+- **Analyse Historique** — Corrélations météo/aviation
+  - Analyse multi-annuelle des tendances
+  - Corrélation conditions météo / activité aérienne
+  - Visualisations statistiques
 
-### Impact Environnemental
-- Qualité de l'air (PM2.5, PM10, NO₂, O₃)
-- Estimation des émissions (CO₂, NOx, particules)
+### 🌤️ Météo & Prévisions
+- **Météo Détaillée** — Conditions actuelles et prévisions
+  - Score aviation (impact météo sur opérations)
+  - Prévisions 7 jours avec alertes
+  - Données horaires détaillées
+- **Historique Météo** — Archive jusqu'à 1940
+  - Tendances climatiques long terme
+  - Analyse comparative par période
+
+### 🌍 Impact Environnemental
+- Qualité de l'air temps réel (PM2.5, PM10, NO₂, O₃, CO, SO₂)
 - European Air Quality Index (AQI)
+- Impact aviation sur la qualité de l'air
+- Statistiques environnementales
 
 ## Technologies
 
@@ -47,15 +65,17 @@ L'objectif est de visualiser la **corrélation entre les conditions météo et l
 
 ```bash
 # Cloner le projet
-git clone https://github.com/TON_USERNAME/meteo-vols-beauvais.git
+git clone https://github.com/Florentine58/meteo-vols-beauvais.git
 cd meteo-vols-beauvais
 
 # Installer les dépendances
 pip install -r requirements.txt
 
 # Configurer les APIs (optionnel)
-cp .env.example .env
-# Éditer .env avec tes clés API
+# Créer un fichier .env à la racine du projet avec :
+# OPENSKY_USERNAME=ton_username
+# OPENSKY_PASSWORD=ton_password
+# RAPIDAPI_KEY=ta_cle_rapidapi
 
 # Lancer l'application
 streamlit run app.py
@@ -71,28 +91,39 @@ streamlit run app.py
 ### APIs Optionnelles (nécessitent un compte)
 - **OpenSky Network** — Trajectoires détaillées des avions
   - Crée un compte sur [opensky-network.org](https://opensky-network.org)
-  - Va dans Settings > API Clients > Create New Client
-  - Copie `client_id` et `client_secret` dans `.env`
+  - Ajoute tes identifiants dans un fichier `.env` :
+    ```
+    OPENSKY_USERNAME=ton_username
+    OPENSKY_PASSWORD=ton_password
+    ```
+- **AeroDataBox (RapidAPI)** — Données FIDS (arrivées/départs détaillées)
+  - Optionnel, nécessite une clé RapidAPI
+  - Ajoute dans `.env` : `RAPIDAPI_KEY=ta_cle`
 
 ## Structure du Projet
 
 ```
 meteo-vols-beauvais/
 ├── app.py                    # Dashboard principal
+├── test_api.py               # Tests de connexion aux APIs
 ├── api/
-│   ├── __init__.py
-│   ├── weather.py            # Météo + Qualité de l'air
+│   ├── __init__.py           # Exports des modules
+│   ├── weather.py            # Météo OpenMeteo
+│   ├── air_quality.py        # Qualité de l'air OpenMeteo
 │   ├── flights.py            # FlightRadar24
-│   ├── air_quality.py        # Qualité de l'air détaillée
-│   └── opensky_v2.py         # OpenSky avec trajectoires
+│   ├── opensky_v2.py         # OpenSky trajectoires (v2 - préféré)
+│   ├── opensky.py            # OpenSky legacy
+│   └── aerodatabox.py        # AeroDataBox (RapidAPI)
 ├── pages/
-│   ├── 1_Carte.py            # Carte interactive
-│   ├── 2_Meteo.py            # Détails météo
-│   ├── 3_Statistiques.py     # Analyse trafic
-│   └── 4_Historique.py       # Corrélations
+│   ├── Carte.py              # Carte temps réel
+│   ├── Meteo.py              # Détails météo
+│   ├── Vols.py               # Analyse trafic aérien
+│   ├── Statistiques.py       # Stats & qualité de l'air
+│   ├── Historique.py         # Données historiques & prévisions
+│   ├── AnalyseHistorique.py  # Corrélations météo/aviation
+│   └── CarteHistorique.py    # Trajectoires historiques
 ├── .streamlit/
-│   └── config.toml           # Thème sombre
-├── .env.example              # Template configuration
+│   └── config.toml           # Thème sombre aviation
 ├── requirements.txt
 └── README.md
 ```
