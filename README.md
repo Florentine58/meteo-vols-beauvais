@@ -14,7 +14,7 @@ L'objectif est de visualiser la **corrélation entre les conditions météo et l
 
 ## Fonctionnalités
 
-### 🗺️ Cartes Interactives
+### Cartes Interactives
 - **Carte Temps Réel** — Visualisation live des avions autour de Beauvais (50km)
   - Positions des avions avec données de vol
   - Overlay météo et qualité de l'air
@@ -24,7 +24,7 @@ L'objectif est de visualiser la **corrélation entre les conditions météo et l
   - Données météo historiques en overlay
   - Recherche par période
 
-### ✈️ Analyses Trafic Aérien
+### Analyses Trafic Aérien
 - **Vols en Direct** — Liste temps réel des vols
   - Filtrage arrivées/départs BVA
   - Statistiques par compagnie/appareil
@@ -34,16 +34,16 @@ L'objectif est de visualiser la **corrélation entre les conditions météo et l
   - Corrélation conditions météo / activité aérienne
   - Visualisations statistiques
 
-### 🌤️ Météo & Prévisions
+### Météo & Prévisions
 - **Météo Détaillée** — Conditions actuelles et prévisions
   - Score aviation (impact météo sur opérations)
   - Prévisions 7 jours avec alertes
   - Données horaires détaillées
-- **Historique Météo** — Archive jusqu'à 1940
+- **Historique Météo** — Archive jusqu'à 1960
   - Tendances climatiques long terme
   - Analyse comparative par période
 
-### 🌍 Impact Environnemental
+### Impact Environnemental
 - Qualité de l'air temps réel (PM2.5, PM10, NO₂, O₃, CO, SO₂)
 - European Air Quality Index (AQI)
 - Impact aviation sur la qualité de l'air
