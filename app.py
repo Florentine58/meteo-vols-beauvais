@@ -324,11 +324,12 @@ with col2:
         st.metric("VENT", "N/A")
 
 with col3:
-    if air_quality:
-        aqi = air_quality.get('european_aqi', 'N/A')
-        st.metric("QUALITÉ AIR", f"AQI {aqi}")
+    if weather:
+        humidity = weather['relative_humidity_2m']
+        delta_txt = "Risque brouillard" if humidity > 90 else None
+        st.metric("HUMIDITÉ", f"{humidity}%", delta=delta_txt, delta_color="inverse")
     else:
-        st.metric("QUALITÉ AIR", "N/A")
+        st.metric("HUMIDITÉ", "N/A")
 
 with col4:
     st.metric("VOLS DÉTECTÉS", len(flights))
@@ -652,17 +653,19 @@ with col2:
 st.divider()
 
 # =============================================================================
-# Section 4 : Graphiques météo
+# Section 4 : Graphiques météo COMPLETS (Temp, Vent, Pluie, Humidité)
 # =============================================================================
 st.markdown("#### Évolution météo — 24 heures")
 
 if hourly:
-    col1, col2 = st.columns(2)
-    
     hours = hourly['time'][:24]
     temps = hourly['temperature_2m'][:24]
     winds = hourly['wind_speed_10m'][:24]
+    precips = hourly['precipitation'][:24]
     hours_fmt = [h.split('T')[1][:5] for h in hours]
+    
+    # Ligne 1 : Température et Vent
+    col1, col2 = st.columns(2)
     
     with col1:
         fig_temp = go.Figure()
@@ -675,7 +678,7 @@ if hourly:
             hovertemplate='%{y}°C<extra></extra>'
         ))
         fig_temp.update_layout(
-            title=dict(text="Température (°C)", font=dict(size=13, color='#FAFAFA')),
+            title=dict(text="🌡️ Température (°C)", font=dict(size=13, color='#FAFAFA')),
             height=220,
             margin=dict(t=35, b=30, l=40, r=15),
             paper_bgcolor='rgba(0,0,0,0)',
@@ -698,7 +701,7 @@ if hourly:
         fig_wind.add_hline(y=30, line_dash="dash", line_color="#EF4444", line_width=1,
                           annotation_text="Seuil", annotation_font_color="#EF4444", annotation_font_size=10)
         fig_wind.update_layout(
-            title=dict(text="Vitesse du vent (km/h)", font=dict(size=13, color='#FAFAFA')),
+            title=dict(text="💨 Vitesse du vent (km/h)", font=dict(size=13, color='#FAFAFA')),
             height=220,
             margin=dict(t=35, b=30, l=40, r=15),
             paper_bgcolor='rgba(0,0,0,0)',
@@ -707,6 +710,64 @@ if hourly:
             yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B', tickfont=dict(size=10))
         )
         st.plotly_chart(fig_wind, use_container_width=True)
+    
+    # Ligne 2 : Précipitations et Humidité
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        fig_precip = go.Figure()
+        fig_precip.add_trace(go.Bar(
+            x=hours_fmt, y=precips,
+            marker_color='#3B82F6',
+            hovertemplate='%{y} mm<extra></extra>'
+        ))
+        fig_precip.update_layout(
+            title=dict(text="🌧️ Précipitations (mm)", font=dict(size=13, color='#FAFAFA')),
+            height=220,
+            margin=dict(t=35, b=30, l=40, r=15),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, color='#64748B', tickfont=dict(size=10)),
+            yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B', tickfont=dict(size=10))
+        )
+        st.plotly_chart(fig_precip, use_container_width=True)
+    
+    with col4:
+        # Pour l'humidité, on utilise les données actuelles répétées (ou on ajoute dans l'API)
+        # En attendant, on affiche un résumé météo complet
+        if weather:
+            humidity = weather['relative_humidity_2m']
+            wind_dir = weather['wind_direction_10m']
+            
+            # Convertir la direction en texte
+            directions = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
+            dir_index = int((wind_dir + 22.5) / 45) % 8
+            wind_dir_text = directions[dir_index]
+            
+            st.markdown(f"""
+            <div style="background: #151B28; padding: 1.25rem; border-radius: 8px; height: 195px;">
+                <div style="font-size: 0.85rem; font-weight: 600; color: #FAFAFA; margin-bottom: 1rem;">
+                    💧 Conditions actuelles
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: {'#EAB308' if humidity > 80 else '#22C55E'};">{humidity}%</div>
+                        <div style="font-size: 0.7rem; color: #64748B; text-transform: uppercase;">Humidité</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 1.75rem; font-weight: 700; color: #94A3B8;">{wind_dir_text}</div>
+                        <div style="font-size: 0.7rem; color: #64748B; text-transform: uppercase;">Direction vent</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #2D3748;">
+                    <div style="font-size: 0.8rem; color: #94A3B8;">
+                        {'⚠️ Humidité élevée - Risque de brouillard' if humidity > 90 else '✅ Visibilité normale' if humidity < 80 else '⚡ Humidité modérée'}
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("Données non disponibles")
 
 st.divider()
 

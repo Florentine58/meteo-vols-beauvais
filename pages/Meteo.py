@@ -1,212 +1,494 @@
 """
-Page Météo — Affiche les données météorologiques de Beauvais
+Page Météo — Données météorologiques complètes de Beauvais
+Prévisions, historique et impact aviation
 """
 
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
+import pandas as pd
 from datetime import datetime
 
 # Import direct depuis la racine du projet
-from api.weather import get_current_weather, get_hourly_forecast, BEAUVAIS_LAT, BEAUVAIS_LON
+from api.weather import (
+    get_current_weather, 
+    get_hourly_forecast, 
+    get_7day_forecast,
+    get_historical_weather,
+    get_weather_code_description,
+    get_aviation_conditions_forecast,
+    BEAUVAIS_LAT, 
+    BEAUVAIS_LON
+)
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Météo Beauvais",
+    page_title="BVA Monitor | Météo",
+    page_icon="🌤️",
     layout="wide"
 )
 
-st.title("Météo Beauvais")
-st.markdown(f"*Données météorologiques en temps réel — Coordonnées : {BEAUVAIS_LAT}, {BEAUVAIS_LON}*")
+# =============================================================================
+# CSS Professionnel
+# =============================================================================
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    .stApp { font-family: 'Inter', sans-serif; }
+    
+    .page-header {
+        background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
+        padding: 1.25rem 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid #00D4FF;
+    }
+    .page-header h1 { color: #FAFAFA; font-weight: 600; margin: 0; font-size: 1.35rem; }
+    .page-header p { color: #94A3B8; margin: 0.25rem 0 0 0; font-size: 0.85rem; }
+    
+    .weather-main {
+        background: linear-gradient(135deg, #1e3a5f 0%, #0d1b2a 100%);
+        padding: 2rem;
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    .weather-temp {
+        font-size: 4rem;
+        font-weight: 700;
+        color: #FAFAFA;
+        line-height: 1;
+    }
+    
+    .weather-desc {
+        font-size: 1.25rem;
+        color: #94A3B8;
+        margin-top: 0.5rem;
+    }
+    
+    .weather-icon {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-card {
+        background: #151B28;
+        padding: 1.25rem;
+        border-radius: 10px;
+        border: 1px solid #2D3748;
+        text-align: center;
+    }
+    .stat-value { font-size: 1.5rem; font-weight: 700; color: #FAFAFA; }
+    .stat-label { font-size: 0.7rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0.25rem; }
+    .stat-green { color: #22C55E; }
+    .stat-yellow { color: #EAB308; }
+    .stat-red { color: #EF4444; }
+    .stat-blue { color: #00D4FF; }
+    
+    .forecast-card {
+        background: #1A1F2E;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 1px solid #2D3748;
+        text-align: center;
+    }
+    
+    .alert-box { padding: 0.75rem 1rem; border-radius: 6px; margin: 0.5rem 0; font-size: 0.85rem; }
+    .alert-success { background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22C55E; color: #86EFAC; }
+    .alert-warning { background: rgba(234, 179, 8, 0.1); border-left: 3px solid #EAB308; color: #FDE047; }
+    .alert-danger { background: rgba(239, 68, 68, 0.1); border-left: 3px solid #EF4444; color: #FCA5A5; }
+    .alert-info { background: rgba(0, 212, 255, 0.1); border-left: 3px solid #00D4FF; color: #7DD3FC; }
+    
+    .footer { text-align: center; padding: 1.5rem; color: #64748B; font-size: 0.75rem; border-top: 1px solid #2D3748; margin-top: 2rem; }
+    
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    hr { border: none; border-top: 1px solid #2D3748; margin: 1.5rem 0; }
+</style>
+""", unsafe_allow_html=True)
 
-# Bouton de rafraîchissement
-if st.button("🔄 Rafraîchir les données"):
-    st.rerun()
+# =============================================================================
+# En-tête
+# =============================================================================
+st.markdown("""
+<div class="page-header">
+    <h1>🌤️ Météo Beauvais</h1>
+    <p>Données météorologiques en temps réel et prévisions — Station de Beauvais-Tillé</p>
+</div>
+""", unsafe_allow_html=True)
+
+col1, col2 = st.columns([4, 1])
+with col1:
+    st.caption(f"Coordonnées : {BEAUVAIS_LAT}°N, {BEAUVAIS_LON}°E | Dernière mise à jour : {datetime.now().strftime('%H:%M')}")
+with col2:
+    if st.button("🔄 Actualiser", type="primary", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
 st.divider()
 
+# =============================================================================
+# Chargement des données
+# =============================================================================
+with st.spinner("Chargement des données météo..."):
+    weather = get_current_weather()
+    hourly = get_hourly_forecast(days=1)
+    forecast_7d = get_7day_forecast()
+    aviation_forecast = get_aviation_conditions_forecast()
 
-# SECTION 1 : Météo actuelle
-
-st.header("Conditions actuelles")
-
-weather = get_current_weather()
-
+# =============================================================================
+# SECTION 1 : Météo actuelle (grand format)
+# =============================================================================
 if weather:
-    # Métriques principales sur une ligne
-    col1, col2, col3, col4 = st.columns(4)
+    col_main, col_details = st.columns([2, 3])
     
-    with col1:
-        st.metric(
-            label="🌡️ Température",
-            value=f"{weather['temperature_2m']}°C"
-        )
+    with col_main:
+        icon, desc = get_weather_code_description(weather.get('weather_code', 0))
+        
+        st.markdown(f"""
+        <div class="weather-main">
+            <div class="weather-icon">{icon}</div>
+            <div class="weather-temp">{weather['temperature_2m']}°C</div>
+            <div class="weather-desc">{desc}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
-    with col2:
-        st.metric(
-            label="💧 Humidité",
-            value=f"{weather['relative_humidity_2m']}%"
-        )
-    
-    with col3:
-        st.metric(
-            label="💨 Vent",
-            value=f"{weather['wind_speed_10m']} km/h"
-        )
-    
-    with col4:
-        st.metric(
-            label="🧭 Direction",
-            value=f"{weather['wind_direction_10m']}°"
-        )
-    
-    # Interprétation de la direction du vent
-    def get_wind_direction_text(degrees):
-        directions = [
-            (0, "Nord"), (45, "Nord-Est"), (90, "Est"), (135, "Sud-Est"),
-            (180, "Sud"), (225, "Sud-Ouest"), (270, "Ouest"), (315, "Nord-Ouest"), (360, "Nord")
-        ]
-        for i in range(len(directions) - 1):
-            if directions[i][0] <= degrees < directions[i+1][0]:
-                return directions[i][1]
-        return "Nord"
-    
-    wind_text = get_wind_direction_text(weather['wind_direction_10m'])
-    st.info(f"Le vent souffle actuellement vers le **{wind_text}** à **{weather['wind_speed_10m']} km/h**")
-    
-    # Code météo (interprétation)
-    weather_codes = {
-        0: "☀️ Ciel dégagé",
-        1: "🌤️ Peu nuageux",
-        2: "⛅ Partiellement nuageux",
-        3: "☁️ Couvert",
-        45: "🌫️ Brouillard",
-        48: "🌫️ Brouillard givrant",
-        51: "🌧️ Bruine légère",
-        53: "🌧️ Bruine modérée",
-        55: "🌧️ Bruine dense",
-        61: "🌧️ Pluie légère",
-        63: "🌧️ Pluie modérée",
-        65: "🌧️ Pluie forte",
-        71: "🌨️ Neige légère",
-        73: "🌨️ Neige modérée",
-        75: "🌨️ Neige forte",
-        95: "⛈️ Orage"
-    }
-    
-    weather_code = weather.get('weather_code', 0)
-    weather_description = weather_codes.get(weather_code, "❓ Inconnu")
-    st.subheader(f"Conditions : {weather_description}")
+    with col_details:
+        # 6 métriques détaillées
+        c1, c2, c3 = st.columns(3)
+        
+        with c1:
+            wind = weather['wind_speed_10m']
+            color = "stat-red" if wind > 40 else "stat-yellow" if wind > 25 else "stat-green"
+            st.markdown(f"""
+            <div class="stat-card">
+                <div class="stat-value {color}">{wind}</div>
+                <div class="stat-label">Vent (km/h)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with c2:
+            humidity = weather['relative_humidity_2m']
+            color = "stat-yellow" if humidity > 85 else ""
+            st.markdown(f"""
+            <div class="stat-card">
+                <div class="stat-value {color}">{humidity}%</div>
+                <div class="stat-label">Humidité</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with c3:
+            wind_dir = weather['wind_direction_10m']
+            directions = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
+            dir_idx = int((wind_dir + 22.5) / 45) % 8
+            st.markdown(f"""
+            <div class="stat-card">
+                <div class="stat-value">{directions[dir_idx]}</div>
+                <div class="stat-label">Direction ({wind_dir}°)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("")
+        
+        # Alertes aviation
+        st.markdown("**🛫 Impact Aviation**")
+        
+        alerts = []
+        if wind > 40:
+            alerts.append(("danger", f"⚠️ Vent fort ({wind} km/h) — Risque de retards/déroutements"))
+        elif wind > 25:
+            alerts.append(("warning", f"💨 Vent modéré ({wind} km/h) — Turbulences possibles"))
+        
+        if humidity > 90:
+            alerts.append(("warning", f"🌫️ Humidité très élevée ({humidity}%) — Risque de brouillard"))
+        
+        if weather.get('weather_code', 0) in [45, 48]:
+            alerts.append(("danger", "🌫️ Brouillard détecté — Impact majeur sur les vols"))
+        elif weather.get('weather_code', 0) in [95, 96, 99]:
+            alerts.append(("danger", "⛈️ Orage en cours — Opérations suspendues"))
+        elif weather.get('weather_code', 0) in [71, 73, 75]:
+            alerts.append(("danger", "❄️ Neige — Piste potentiellement impactée"))
+        
+        if not alerts:
+            st.markdown('<div class="alert-box alert-success">✅ Conditions favorables pour l\'aviation</div>', unsafe_allow_html=True)
+        else:
+            for level, msg in alerts:
+                st.markdown(f'<div class="alert-box alert-{level}">{msg}</div>', unsafe_allow_html=True)
 
 else:
     st.error("❌ Impossible de récupérer les données météo actuelles.")
 
 st.divider()
 
+# =============================================================================
+# SECTION 2 : Prévisions 7 jours
+# =============================================================================
+st.markdown("### 📅 Prévisions 7 jours")
 
-# SECTION 2 : Prévisions horaires
+if aviation_forecast:
+    cols = st.columns(7)
+    
+    for i, day in enumerate(aviation_forecast[:7]):
+        with cols[i]:
+            date_obj = datetime.strptime(day['date'], "%Y-%m-%d")
+            icon, desc = get_weather_code_description(day['weather_code'])
+            
+            # Couleur selon score aviation
+            if day['score'] >= 80:
+                border_color = "#22C55E"
+                score_color = "#22C55E"
+            elif day['score'] >= 50:
+                border_color = "#EAB308"
+                score_color = "#EAB308"
+            else:
+                border_color = "#EF4444"
+                score_color = "#EF4444"
+            
+            st.markdown(f"""
+            <div class="forecast-card" style="border-top: 3px solid {border_color};">
+                <div style="font-weight: 600; color: #FAFAFA;">{date_obj.strftime('%a')}</div>
+                <div style="font-size: 0.75rem; color: #64748B;">{date_obj.strftime('%d/%m')}</div>
+                <div style="font-size: 2rem; margin: 0.5rem 0;">{icon}</div>
+                <div style="font-size: 0.8rem; color: #94A3B8;">{desc[:15]}...</div>
+                <div style="margin: 0.5rem 0;">
+                    <span style="font-weight: 600; color: #FAFAFA;">{day['temp_max']:.0f}°</span>
+                    <span style="color: #64748B;"> / {day['temp_min']:.0f}°</span>
+                </div>
+                <div style="font-size: 0.75rem; color: #64748B;">
+                    💨 {day['wind_max']:.0f} km/h
+                </div>
+                <div style="font-size: 0.75rem; color: #64748B;">
+                    🌧️ {day['precipitation']:.1f} mm
+                </div>
+                <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #2D3748;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: {score_color};">
+                        ✈️ {day['score']}/100
+                    </span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Légende
+    st.markdown("")
+    st.caption("**Score Aviation :** 🟢 80-100 Optimal | 🟡 50-79 Vigilance | 🔴 0-49 Difficile")
 
-st.header("Prévisions sur 24 heures")
+st.divider()
 
-forecast = get_hourly_forecast(days=1)
+# =============================================================================
+# SECTION 3 : Évolution sur 24h
+# =============================================================================
+st.markdown("### 📈 Évolution sur 24 heures")
 
-if forecast:
-    # Créer un graphique avec Plotly
-    hours = forecast['time'][:24]  # Limiter à 24h
-    temperatures = forecast['temperature_2m'][:24]
-    wind_speeds = forecast['wind_speed_10m'][:24]
+if hourly:
+    hours = hourly['time'][:24]
+    temps = hourly['temperature_2m'][:24]
+    winds = hourly['wind_speed_10m'][:24]
+    precips = hourly['precipitation'][:24]
+    hours_fmt = [h.split('T')[1][:5] for h in hours]
     
-    # Formater les heures pour l'affichage
-    hours_formatted = [h.split('T')[1][:5] for h in hours]  # Extraire HH:MM
+    # Onglets pour les graphiques
+    tab1, tab2, tab3 = st.tabs(["🌡️ Température", "💨 Vent", "🌧️ Précipitations"])
     
-    # Graphique température
-    fig_temp = go.Figure()
-    fig_temp.add_trace(go.Scatter(
-        x=hours_formatted,
-        y=temperatures,
-        mode='lines+markers',
-        name='Température',
-        line=dict(color='#FF6B6B', width=3),
-        marker=dict(size=8)
-    ))
-    fig_temp.update_layout(
-        title="🌡️ Température (°C)",
-        xaxis_title="Heure",
-        yaxis_title="°C",
-        height=300,
-        template="plotly_white"
-    )
-    st.plotly_chart(fig_temp, use_container_width=True)
+    with tab1:
+        fig_temp = go.Figure()
+        fig_temp.add_trace(go.Scatter(
+            x=hours_fmt, y=temps,
+            mode='lines+markers',
+            line=dict(color='#00D4FF', width=3),
+            marker=dict(size=6),
+            fill='tozeroy',
+            fillcolor='rgba(0, 212, 255, 0.1)',
+            hovertemplate='%{x}<br>%{y}°C<extra></extra>'
+        ))
+        fig_temp.update_layout(
+            height=350,
+            margin=dict(t=20, b=40, l=50, r=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, color='#64748B', title='Heure'),
+            yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B', title='Température (°C)')
+        )
+        st.plotly_chart(fig_temp, use_container_width=True)
+        
+        # Stats
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Minimum", f"{min(temps):.1f}°C")
+        c2.metric("Maximum", f"{max(temps):.1f}°C")
+        c3.metric("Amplitude", f"{max(temps) - min(temps):.1f}°C")
     
-    # Graphique vent
-    fig_wind = go.Figure()
-    fig_wind.add_trace(go.Scatter(
-        x=hours_formatted,
-        y=wind_speeds,
-        mode='lines+markers',
-        name='Vent',
-        line=dict(color='#4ECDC4', width=3),
-        marker=dict(size=8),
-        fill='tozeroy',
-        fillcolor='rgba(78, 205, 196, 0.2)'
-    ))
-    fig_wind.update_layout(
-        title="💨 Vitesse du vent (km/h)",
-        xaxis_title="Heure",
-        yaxis_title="km/h",
-        height=300,
-        template="plotly_white"
-    )
-    st.plotly_chart(fig_wind, use_container_width=True)
+    with tab2:
+        fig_wind = go.Figure()
+        fig_wind.add_trace(go.Scatter(
+            x=hours_fmt, y=winds,
+            mode='lines+markers',
+            line=dict(color='#8B5CF6', width=3),
+            marker=dict(size=6),
+            fill='tozeroy',
+            fillcolor='rgba(139, 92, 246, 0.1)',
+            hovertemplate='%{x}<br>%{y} km/h<extra></extra>'
+        ))
+        # Seuils
+        fig_wind.add_hline(y=25, line_dash="dash", line_color="#EAB308", annotation_text="Turbulences (25)")
+        fig_wind.add_hline(y=40, line_dash="dash", line_color="#EF4444", annotation_text="Critique (40)")
+        
+        fig_wind.update_layout(
+            height=350,
+            margin=dict(t=20, b=40, l=50, r=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, color='#64748B', title='Heure'),
+            yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B', title='Vent (km/h)')
+        )
+        st.plotly_chart(fig_wind, use_container_width=True)
+        
+        # Stats
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Minimum", f"{min(winds):.0f} km/h")
+        c2.metric("Maximum", f"{max(winds):.0f} km/h")
+        hours_above_25 = sum(1 for w in winds if w > 25)
+        c3.metric("Heures > 25 km/h", f"{hours_above_25}h")
     
-    # Tableau des prévisions
-    with st.expander("📋 Voir le tableau des prévisions"):
-        import pandas as pd
-        df = pd.DataFrame({
-            'Heure': hours_formatted,
-            'Température (°C)': temperatures,
-            'Vent (km/h)': wind_speeds,
-            'Précipitations (mm)': forecast['precipitation'][:24]
-        })
+    with tab3:
+        fig_precip = go.Figure()
+        fig_precip.add_trace(go.Bar(
+            x=hours_fmt, y=precips,
+            marker_color='#3B82F6',
+            hovertemplate='%{x}<br>%{y} mm<extra></extra>'
+        ))
+        fig_precip.update_layout(
+            height=350,
+            margin=dict(t=20, b=40, l=50, r=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, color='#64748B', title='Heure'),
+            yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B', title='Précipitations (mm)')
+        )
+        st.plotly_chart(fig_precip, use_container_width=True)
+        
+        # Stats
+        c1, c2, c3 = st.columns(3)
+        total_precip = sum(precips)
+        c1.metric("Total", f"{total_precip:.1f} mm")
+        c2.metric("Max/heure", f"{max(precips):.1f} mm")
+        rainy_hours = sum(1 for p in precips if p > 0.1)
+        c3.metric("Heures de pluie", f"{rainy_hours}h")
+
+st.divider()
+
+# =============================================================================
+# SECTION 4 : Seuils Aviation
+# =============================================================================
+st.markdown("### ✈️ Seuils Météo pour l'Aviation")
+
+st.markdown("""
+<div class="alert-box alert-info">
+    <b>💡 Ces seuils sont utilisés pour calculer le score aviation</b><br>
+    Ils sont basés sur les recommandations ICAO et les pratiques des compagnies low-cost opérant à Beauvais.
+</div>
+""", unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("#### 💨 Vent")
+    st.markdown("""
+    | Seuil | Valeur | Impact |
+    |-------|--------|--------|
+    | 🟢 Favorable | < 25 km/h | Opérations normales |
+    | 🟡 Modéré | 25-40 km/h | Turbulences possibles, vigilance |
+    | 🔴 Fort | > 40 km/h | Risque de retards/déroutements |
+    | ⛔ Critique | > 50 km/h | Opérations suspendues |
+    
+    **Rafales :** Seuil critique à **60 km/h** pour les atterrissages.
+    
+    **Vent de travers :** Limite généralement à **35 kts (65 km/h)** pour les Boeing 737 / Airbus A320.
+    """)
+
+with col2:
+    st.markdown("#### 🌫️ Visibilité & Phénomènes")
+    st.markdown("""
+    | Phénomène | Impact sur le score |
+    |-----------|---------------------|
+    | Brouillard | **-30 points** |
+    | Neige | **-30 points** |
+    | Orage | **-35 points** |
+    | Pluie forte (>20mm) | **-25 points** |
+    | Pluie modérée (10-20mm) | **-15 points** |
+    
+    **Humidité :** 
+    - \> 90% : Risque de brouillard
+    - \> 95% : Formation de givre possible
+    
+    **Catégories ILS (atterrissage) :**
+    - CAT I : Visibilité > 800m
+    - CAT II : Visibilité > 350m  
+    - CAT III : Visibilité < 200m (équipement spécial)
+    """)
+
+st.divider()
+
+# =============================================================================
+# SECTION 5 : Historique récent
+# =============================================================================
+st.markdown("### 📊 Historique récent")
+
+with st.spinner("Chargement de l'historique..."):
+    history = get_historical_weather(days=7)
+
+if history:
+    df = pd.DataFrame({
+        'Date': history['time'],
+        'Temp Max (°C)': history['temperature_2m_max'],
+        'Temp Min (°C)': history['temperature_2m_min'],
+        'Précip (mm)': history['precipitation_sum'],
+        'Vent Max (km/h)': history['wind_speed_10m_max']
+    })
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        fig_hist = go.Figure()
+        fig_hist.add_trace(go.Scatter(x=df['Date'], y=df['Temp Max (°C)'], mode='lines+markers', name='Max', line=dict(color='#EF4444', width=2)))
+        fig_hist.add_trace(go.Scatter(x=df['Date'], y=df['Temp Min (°C)'], mode='lines+markers', name='Min', line=dict(color='#3B82F6', width=2), fill='tonexty', fillcolor='rgba(59, 130, 246, 0.1)'))
+        fig_hist.update_layout(
+            title=dict(text="Températures (7 derniers jours)", font=dict(size=13, color='#FAFAFA')),
+            height=280,
+            margin=dict(t=40, b=30, l=40, r=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, color='#64748B'),
+            yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B'),
+            legend=dict(orientation='h', y=1.1, font=dict(color='#94A3B8'))
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
+    
+    with col2:
+        fig_wind_hist = go.Figure()
+        fig_wind_hist.add_trace(go.Bar(x=df['Date'], y=df['Vent Max (km/h)'], marker_color='#8B5CF6'))
+        fig_wind_hist.add_hline(y=40, line_dash="dash", line_color="#EF4444")
+        fig_wind_hist.update_layout(
+            title=dict(text="Vent maximum (7 derniers jours)", font=dict(size=13, color='#FAFAFA')),
+            height=280,
+            margin=dict(t=40, b=30, l=40, r=20),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(showgrid=False, color='#64748B'),
+            yaxis=dict(showgrid=True, gridcolor='#1E293B', color='#64748B')
+        )
+        st.plotly_chart(fig_wind_hist, use_container_width=True)
+    
+    # Tableau
+    with st.expander("📋 Voir les données détaillées"):
         st.dataframe(df, use_container_width=True, hide_index=True)
 
-else:
-    st.error("❌ Impossible de récupérer les prévisions météo.")
-
-st.divider()
-
-
-# SECTION 3 : Impact sur l'aviation
-
-st.header("Impact sur l'aviation")
-
-if weather:
-    # Analyse des conditions pour l'aviation
-    conditions = []
-    
-    # Vent
-    wind_speed = weather['wind_speed_10m']
-    if wind_speed < 20:
-        conditions.append((" Vent faible", "Conditions favorables pour les opérations aériennes"))
-    elif wind_speed < 40:
-        conditions.append((" Vent modéré", "Légères turbulences possibles à l'atterrissage"))
-    else:
-        conditions.append((" Vent fort", "Risque de retards ou déroutements"))
-    
-    # Visibilité (si disponible dans les prévisions)
-    if forecast and 'visibility' in forecast:
-        visibility = forecast['visibility'][0] / 1000  # Convertir en km
-        if visibility > 10:
-            conditions.append((" Bonne visibilité", f"{visibility:.0f} km — Conditions VFR"))
-        elif visibility > 5:
-            conditions.append(("Visibilité moyenne", f"{visibility:.0f} km — Approches ILS possibles"))
-        else:
-            conditions.append((" Mauvaise visibilité", f"{visibility:.0f} km — Risque de retards"))
-    
-    # Afficher les conditions
-    for status, description in conditions:
-        st.markdown(f"**{status}** — {description}")
-
+# =============================================================================
 # Footer
-st.divider()
-st.caption("Données fournies par OpenMeteo API — Mise à jour en temps réel")
+# =============================================================================
+st.markdown(f"""
+<div class="footer">
+    Données : OpenMeteo API — Mise à jour temps réel<br>
+    Station : Beauvais-Tillé ({BEAUVAIS_LAT}°N, {BEAUVAIS_LON}°E)<br>
+    Projet Mineure Numérique B2 — 2025
+</div>
+""", unsafe_allow_html=True)
