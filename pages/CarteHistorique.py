@@ -27,7 +27,6 @@ from api.weather import get_historical_weather, get_current_weather
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Carte Historique",
-    page_icon="✈️",
     layout="wide"
 )
 
