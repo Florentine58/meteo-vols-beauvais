@@ -20,6 +20,12 @@ from api.weather import (
     get_long_term_historical_weather
 )
 
+# Traduction des jours en français
+JOURS_FR = {
+    'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mer', 'Thu': 'Jeu', 
+    'Fri': 'Ven', 'Sat': 'Sam', 'Sun': 'Dim'
+}
+
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Historique",
@@ -226,7 +232,7 @@ with tab1:
                 
                 st.markdown(f"""
                 <div class="forecast-card" style="{bg_border}">
-                    <div style="font-weight: 600; color: #FAFAFA;">{date_obj.strftime('%A')[:3]}</div>
+                    <div style="font-weight: 600; color: #FAFAFA;">{JOURS_FR.get(date_obj.strftime('%a'), date_obj.strftime('%a'))}</div>
                     <div style="font-size: 0.75rem; color: #64748B;">{date_obj.strftime('%d/%m')}</div>
                     <div style="font-size: 1.5rem; margin: 0.5rem 0;">{icon}</div>
                     <div style="font-size: 0.85rem; color: #94A3B8;">{desc}</div>

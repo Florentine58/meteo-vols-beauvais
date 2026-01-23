@@ -21,6 +21,12 @@ from api.weather import (
     BEAUVAIS_LON
 )
 
+# Traduction des jours en français
+JOURS_FR = {
+    'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mer', 'Thu': 'Jeu', 
+    'Fri': 'Ven', 'Sat': 'Sam', 'Sun': 'Dim'
+}
+
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Météo",
@@ -242,7 +248,7 @@ if aviation_forecast:
             
             st.markdown(f"""
             <div class="forecast-card" style="border-top: 3px solid {border_color};">
-                <div style="font-weight: 600; color: #FAFAFA;">{date_obj.strftime('%a')}</div>
+                <div style="font-weight: 600; color: #FAFAFA;">{JOURS_FR.get(date_obj.strftime('%a'), date_obj.strftime('%a'))}</div>
                 <div style="font-size: 0.75rem; color: #64748B;">{date_obj.strftime('%d/%m')}</div>
                 <div style="font-size: 2rem; margin: 0.5rem 0;">{icon}</div>
                 <div style="font-size: 0.8rem; color: #94A3B8;">{desc[:15]}...</div>

@@ -13,6 +13,12 @@ from api.weather import get_current_weather, get_hourly_forecast, get_aviation_c
 from api.flights import get_flights_in_area, get_airport_info
 from api.air_quality import get_current_air_quality, calculate_aviation_air_impact
 
+# Traduction des jours en français
+JOURS_FR = {
+    'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mer', 'Thu': 'Jeu', 
+    'Fri': 'Ven', 'Sat': 'Sam', 'Sun': 'Dim'
+}
+
 # Configuration de la page
 st.set_page_config(
     page_title="BVA Monitor | Météo & Vols",
@@ -432,7 +438,7 @@ with col_left:
                 
                 st.markdown(f"""
                 <div class="forecast-day">
-                    <div class="forecast-day-name">{date_obj.strftime('%a')}</div>
+                    <div class="forecast-day-name">{JOURS_FR.get(date_obj.strftime('%a'), date_obj.strftime('%a'))}</div>
                     <div class="forecast-day-date">{date_obj.strftime('%d/%m')}</div>
                     <div style="font-size: 1.25rem; margin: 0.4rem 0;">{icon}</div>
                     <div class="forecast-temp">
