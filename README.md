@@ -73,9 +73,9 @@ pip install -r requirements.txt
 
 # Configurer les APIs (optionnel)
 # Créer un fichier .env à la racine du projet avec :
-# OPENSKY_USERNAME=ton_username
-# OPENSKY_PASSWORD=ton_password
-# RAPIDAPI_KEY=ta_cle_rapidapi
+# OPENSKY_USERNAME=username
+# OPENSKY_PASSWORD=password
+# RAPIDAPI_KEY=cle_rapidapi
 
 # Lancer l'application
 streamlit run app.py
