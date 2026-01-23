@@ -81,25 +81,6 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Configuration API
-
-### APIs Gratuites (sans configuration)
-- **OpenMeteo Weather** — Météo actuelle, prévisions, historique
-- **OpenMeteo Air Quality** — Qualité de l'air, polluants
-- **FlightRadar24** — Vols temps réel
-
-### APIs Optionnelles (nécessitent un compte)
-- **OpenSky Network** — Trajectoires détaillées des avions
-  - Crée un compte sur [opensky-network.org](https://opensky-network.org)
-  - Ajoute tes identifiants dans un fichier `.env` :
-    ```
-    OPENSKY_USERNAME=ton_username
-    OPENSKY_PASSWORD=ton_password
-    ```
-- **AeroDataBox (RapidAPI)** — Données FIDS (arrivées/départs détaillées)
-  - Optionnel, nécessite une clé RapidAPI
-  - Ajoute dans `.env` : `RAPIDAPI_KEY=ta_cle`
-
 ## Structure du Projet
 
 ```
@@ -146,7 +127,7 @@ meteo-vols-beauvais/
 - Altitude, vitesse, cap
 - Trajectoires (avec OpenSky)
 
-## Contexte Académique
+## Contexte Académique - UniLaSalle Beauvais
 
 | | |
 |---|---|
