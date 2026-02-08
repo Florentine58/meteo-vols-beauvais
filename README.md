@@ -61,26 +61,6 @@ L'objectif est de visualiser la **corrélation entre les conditions météo et l
 | Folium | Cartes interactives |
 | Plotly | Graphiques |
 
-## Installation
-
-```bash
-# Cloner le projet
-git clone https://github.com/Florentine58/meteo-vols-beauvais.git
-cd meteo-vols-beauvais
-
-# Installer les dépendances
-pip install -r requirements.txt
-
-# Configurer les APIs (optionnel)
-# Créer un fichier .env à la racine du projet avec :
-# OPENSKY_USERNAME=username
-# OPENSKY_PASSWORD=password
-# RAPIDAPI_KEY=cle_rapidapi
-
-# Lancer l'application
-streamlit run app.py
-```
-
 ## Structure du Projet
 
 ```
